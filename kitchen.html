@@ -1664,6 +1664,8 @@ Yield in pieces, storage, how long keeps, grab size. BAKING SCALE TIP in tip: "~
 
 ${A.kidFriendly?`KID FRIENDLY: Mild, nut-free, simple, kid portions.`:''}
 ${A.dietary.length>0?`DIETARY RESTRICTIONS — NEVER VIOLATE: ${A.dietary.join(', ')}`:''}
+HEALTH CLAIMS — NEVER MAKE ANY: Do not say or imply that a meal controls, steadies, lowers or improves blood sugar, or cures, treats or prevents any condition, or is good for a medical condition. This applies to the title, description, steps and tip. Describe only what is in the meal, for example "high protein, moderate carbs, 8g fiber".
+${A.dietary.includes('Diabetic Friendly')?'DIABETIC FRIENDLY is selected: keep carbs lower per serving, favor fiber and protein, and keep the carb count plain and accurate. Still make no claim about blood sugar results.':''}
 ${(A.dietaryGoals||[]).length>0?`DIETARY GOALS ACTIVE: ${(A.dietaryGoals||[]).join(', ')}
 DIETARY GOAL RULES — apply precisely, never over-interpret:
 HIGH PROTEIN: Maximize protein per serving. Choose protein-rich ingredients. Include substantial protein at every meal. NEVER replace bread, pizza crust, tortillas, pasta, or rice with meat. A pizza with regular crust and high-protein toppings IS high protein. A meat crust wastes protein and is not appropriate for a family kitchen.
@@ -1859,7 +1861,7 @@ Read your pull list. If you wrote "Ground Pork" — the word "Chops" cannot appe
 RESPOND WITH VALID JSON ONLY:
 {
   "title": "Specific dish name",
-  "description": "One line that makes them want to make it",
+  "description": "One line that makes them want to make it. Describe the food only. No health claims and nothing about blood sugar.",
   "macros": {"cal": 450, "protein": 38, "carbs": 35, "fat": 16},
   "pull": [
     {"icon": "🥩", "item": "Shredded Pork", "qty": "2 bags = 3 lbs cooked", "prepNote": "Already cooked — heat gently 3-4 min"},
