@@ -7,11 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
 <style>
-:root{--blue:#2f5fa0;--blue-d:#24498a;--blue-m:#4a76b8;--light:#DCE6F1;--line:#b9cbe4;--bg:#FFFFFF;--bg2:#F3F6FB;--track:#e1e8f3;--gold:#C59B27;--gold-l:#F0D58C;--gold-d:#6d5410;--ink:#1c2433;--mute:#46506a;--red:#8f3a2f}
 *{box-sizing:border-box}
 body{margin:0;font-family:Jost,sans-serif;background:var(--bg2);color:var(--ink);font-size:16px}
-h1,h2,h3{font-family:'Cormorant Garamond',serif;color:var(--blue);margin:0}
+h1,h2,h3{font-family:'Cormorant Garamond',serif;color:var(--navy);margin:0}
 h1{font-size:44px;line-height:1.05}h2{font-size:28px}
 button,input,select,textarea{font-family:inherit;font-size:16px}
 .btn{min-height:46px;padding:0 20px;border:0;border-radius:12px;background:var(--blue);color:#fff;font-weight:600;cursor:pointer}
@@ -26,7 +26,7 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
 .center{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
 .center .card{max-width:440px;width:100%}
 #app{display:flex;min-height:100vh}
-#side{width:250px;flex:0 0 250px;background:linear-gradient(180deg,#3566ac,#24498a);border-right:3px solid var(--gold);color:#fff;padding:24px 16px;display:flex;flex-direction:column;gap:6px}
+#side{width:250px;flex:0 0 250px;background:linear-gradient(180deg,var(--side-top),var(--side-bot));border-right:3px solid var(--gold);color:#fff;padding:24px 16px;display:flex;flex-direction:column;gap:6px}
 #side .brand{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:700;line-height:1;margin:6px 8px 0}
 #side .by{font-size:11px;letter-spacing:.16em;color:var(--gold-l);margin:6px 8px 22px}
 #side a{display:block;padding:12px 14px;border-radius:12px;color:#fff;cursor:pointer;font-weight:500}
