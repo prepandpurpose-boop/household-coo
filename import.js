@@ -94,7 +94,7 @@
     try {
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
-        status.textContent = 'Reading file ' + (i + 1) + ' of ' + files.length + '…';
+        status.textContent = 'Step 1 of 2: reading file ' + (i + 1) + ' of ' + files.length + '. This takes a minute or two. Please wait and do not press the button again.';
         const name = f.file.name.toLowerCase();
         let payload;
         if (name.endsWith('.csv') || f.file.type === 'text/csv') {
@@ -107,13 +107,14 @@
         const tag = (f.label || '').replace(/\|/g, ' ').trim();
         all = all.concat(lines.map(l => tag ? l + '|' + tag : l));
       }
-      status.textContent = 'Putting your money picture together…';
+      status.textContent = 'Found ' + all.length + ' transactions. Step 2 of 2: putting your money picture together. Almost done, please keep waiting.';
       const today = new Date().toISOString().slice(0, 10);
       found = parseJson(await call({ mode: 'summarize', today, lines: all.join('\n') }));
-      status.textContent = 'Found ' + all.length + ' transactions.';
+      status.textContent = 'Done. I read ' + all.length + ' transactions. Your results are right below. Look them over, fix anything, then press the green button at the very bottom.';
       renderReview();
+      try { $('impReview').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { }
     } catch (e) {
-      status.textContent = e.message === 'parse' ? 'I could not put that together. Please try again.' : e.message;
+      status.textContent = (e.message === 'parse' ? 'I could not put that together.' : e.message) + ' Your files were not saved anywhere. Press the button to try again.';
     }
     $('impRead').disabled = !files.length;
   };
