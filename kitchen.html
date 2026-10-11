@@ -932,7 +932,14 @@ function rcLoading(t){openModal('<div class="modal-header"><div class="modal-tit
 
 function rcToast(t){const d=document.createElement('div');d.textContent=t;d.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#14213d;color:#fff;padding:12px 18px;border-radius:12px;z-index:99999;font-size:14px;max-width:90%;text-align:center';document.body.appendChild(d);setTimeout(()=>d.remove(),4500);}
 let _rc=null;
-function snapReceipt(){pickPhoto(async f=>{
+function rcIntro(kind){const rec=kind==='receipt';
+  openModal('<div class="modal-header"><div class="modal-title">'+(rec?'🧾 Scan a grocery receipt':'📷 Photo of something we\'re out of')+'</div><button class="modal-close" onclick="closeModal()">×</button></div>'+
+  '<div style="font-size:14px;line-height:1.6;margin-bottom:14px">'+(rec?
+  '<p style="margin:0 0 10px"><strong>What to do:</strong> lay your store receipt flat and take one clear picture of the whole thing.</p><p style="margin:0 0 10px"><strong>What I will do:</strong> read every item, its size, and its price, then show you the list so you can fix anything before it is saved.</p><p style="margin:0"><strong>What happens when you save:</strong> the prices and sizes are remembered, so next time your grocery list shows what you paid last. Items you track in your kitchen are added to your inventory. What you spent is recorded for the parents.</p>':
+  '<p style="margin:0 0 10px"><strong>What to do:</strong> take a picture of the empty, or almost empty, item with the label showing.</p><p style="margin:0 0 10px"><strong>What I will do:</strong> read the name and the size off the label.</p><p style="margin:0"><strong>What happens next:</strong> you check it, choose Out or Almost out, and it is added to your grocery list with the size.</p>')+'</div>'+
+  '<button class="btn btn-primary btn-full btn-lg" onclick="closeModal();'+(rec?'rcRunReceipt()':'rcRunItem()')+'">'+(rec?'Take or choose a receipt photo':'Take or choose a photo')+'</button>');}
+function snapReceipt(){rcIntro('receipt');}
+function rcRunReceipt(){pickPhoto(async f=>{
   rcLoading('Reading your receipt');
   try{_rc=await readPhoto('receipt',f);_rc.items=(_rc.items||[]).map(it=>({...it,use:true,match:rcMatch(it.name)}));showReceipt();}
   catch(e){rcError(e.message,'snapReceipt');}
@@ -978,7 +985,8 @@ function saveReceipt(){
   rcToast('Saved '+used.length+' items'+(added?' · '+added+' kitchen items updated':'')+(bought?' · '+bought+' checked off your list':''));
 }
 
-function snapItem(){pickPhoto(async f=>{
+function snapItem(){rcIntro('item');}
+function rcRunItem(){pickPhoto(async f=>{
   rcLoading('Reading your photo');
   try{showItem(await readPhoto('item',f));}
   catch(e){rcError(e.message,'snapItem');}
@@ -1909,6 +1917,7 @@ Baking/Dry: ${(()=>{const b=A.pantry?.baking||[];return b.filter(i=>i.have&&(i.q
 Oils & Condiments: ${(()=>{const o=[...(A.pantry?.oils||[]),...(A.pantry?.condiments||[])];return o.filter(i=>(i.qty||0)>0).map(i=>i.name+' ('+i.qty+' '+i.unit+')').join(', ')||'None';})()}
 Spices: ${(()=>{const s=A.pantry?.spices||[];return s.filter(i=>(i.qty||0)>0).map(i=>i.name+' ('+i.qty+' oz)').join(', ')||'None';})()}
 NOTE: Any ingredient NOT listed above AND NOT a basic assumed staple (water, standard salt, black pepper) MUST appear in groceryFlags.
+HONESTY RULE: prepNote may say "From the fridge", "From pantry" or "From your stock" ONLY for an item that appears by name in the inventory lists above. Any other ingredient must have prepNote "Not in your inventory. Buy this." and must also appear in groceryFlags. If every list above says None, nothing is in stock, so every ingredient except water, salt and black pepper is something to buy.
 HOME CANNED: ${(A.homeCanned||[]).length>0?(A.homeCanned||[]).map(hc=>{const cups={halfPint:1,pint:2,pintHalf:3,quart:4,halfGallon:8}[hc.jarSize]||2;const jarLabel={halfPint:'half-pint jar (1 cup)',pint:'pint jar (2 cups)',pintHalf:'pint-and-a-half jar (3 cups)',quart:'quart jar (4 cups)',halfGallon:'half-gallon jar (8 cups)'}[hc.jarSize]||'pint jar (2 cups)';const isFD=/freeze.?dried|freeze dried|FD/i.test(hc.name);const totalCups=hc.qty*cups;if(isFD){return`${hc.name}: ${hc.qty} ${jarLabel}${hc.qty!==1?'s':''} = ${totalCups} cups total — FREEZE DRIED: measure out exact amount by cup/tbsp, no need to pull whole jar`;}return`${hc.name}: ${hc.qty} ${jarLabel}${hc.qty!==1?'s':''} = ${totalCups} cups — pull by jar count, use whole jars`;}).join(' | '):'None'}
 FRIDGE: ${fridgeQty.length>0?fridgeQty.join(' | '):'None'}
 PANTRY STAPLES ON HAND: ${toggles.length>0?toggles.join(', '):'None'}
@@ -2021,8 +2030,15 @@ function rRecipe(){
   // Clean all pull quantities at render time — catches old saved recipes too
   const cleanedPull=(r.pull||[]).map(p=>({...p,qty:cleanQty(p.qty),item:cleanQty(p.item),prepNote:p.prepNote?cleanQty(p.prepNote):p.prepNote}));
   const stockKeywords=['quart bag','frozen bag','cans','1 can','2 cans','3 cans','lbs cooked','bag =','bags =','bags cooked','bag cooked'];
-  const fromStock=cleanedPull.filter(p=>stockKeywords.some(k=>p.qty&&p.qty.toLowerCase().includes(k)));
-  const fromKitchen=cleanedPull.filter(p=>!stockKeywords.some(k=>p.qty&&p.qty.toLowerCase().includes(k)));
+  const _fl=(r.groceryFlags||[]).map(f=>String(f.name||'').toLowerCase()).filter(Boolean);
+  const _buyRx=/purchase|buy at|to buy|buy this|grocery list|not in stock|need to buy/i;
+  const _basic=/^(salt|black pepper|pepper|water|kosher salt|sea salt)\b/i;
+  const _nothing=!(A.supports||[]).some(s=>(s.frozen||0)>0||(s.canned||0)>0||(s.dry||0)>0||(s.each||0)>0)&&!(A.bases||[]).some(b=>(b.frozen||0)>0)&&!Object.values(A.pantry||{}).some(c=>Array.isArray(c)&&c.some(i=>i.have||(i.qty||0)>0));
+  const _isBuy=p=>{const n=String(p.item||'').toLowerCase();if(_basic.test(n))return false;return _nothing||_buyRx.test(p.prepNote||'')||_fl.some(f=>n.includes(f)||f.includes(n));};
+  const toBuy=cleanedPull.filter(_isBuy).map(p=>({...p,prepNote:'Not in your inventory yet. Buy this.'}));
+  const _rest=cleanedPull.filter(p=>!_isBuy(p));
+  const fromStock=_rest.filter(p=>stockKeywords.some(k=>p.qty&&p.qty.toLowerCase().includes(k)));
+  const fromKitchen=_rest.filter(p=>!stockKeywords.some(k=>p.qty&&p.qty.toLowerCase().includes(k)));
   const isEmergency=A.buildEmergency;
 
   return`<div style="max-width:720px">
@@ -2048,6 +2064,7 @@ function rRecipe(){
     </div>
 
     <div class="card card-pad" style="margin-bottom:16px">
+      ${toBuy.length>0?`<div class="pull-section"><div class="pull-section-title">🛒 You Need to Buy</div>${toBuy.map(p=>`<div class="pull-row"><div class="pull-icon">${p.icon||'🛒'}</div><div style="flex:1"><div class="pull-name">${p.item}</div><div class="pull-note">${p.prepNote||''}</div></div><span class="pull-qty">${p.qty}</span></div>`).join('')}</div>`:''}
       ${fromStock.length>0?`<div class="pull-section"><div class="pull-section-title">❄️ From Your Stock — Pull These First</div>${fromStock.map(p=>`<div class="pull-row"><div class="pull-icon">${p.icon||'🍱'}</div><div style="flex:1"><div class="pull-name">${p.item}</div><div class="pull-note">${p.prepNote||''}</div></div><span class="pull-qty">${p.qty}</span></div>`).join('')}</div>`:''}
       ${fromKitchen.length>0?`<div class="pull-section"><div class="pull-section-title">🧂 From Your Kitchen</div>${fromKitchen.map(p=>`<div class="pull-row"><div class="pull-icon">${p.icon||'🧂'}</div><div style="flex:1"><div class="pull-name">${p.item}</div><div class="pull-note">${p.prepNote||''}</div></div><span class="pull-qty">${p.qty}</span></div>`).join('')}</div>`:''}
 
@@ -3524,8 +3541,8 @@ function rGrocery(){
   let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
     <div><div class="page-title" style="font-size:18px">Shopping List</div><div style="font-size:13px;color:var(--text-muted)">${out.length+low.length} items needed</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-outline btn-sm" onclick="snapItem()">📷 Photo</button>
-      <button class="btn btn-outline btn-sm" onclick="snapReceipt()">🧾 Receipt</button>
+      <button class="btn btn-outline btn-sm" onclick="snapItem()">📷 Photo of what we're out of</button>
+      <button class="btn btn-outline btn-sm" onclick="snapReceipt()">🧾 Scan receipt</button>
       <button class="btn btn-outline btn-sm" onclick="printGroc()">🖨️ Print</button>
       <button class="btn btn-primary btn-sm" onclick="openAddGroc()">+ Add Item</button>
     </div>
