@@ -212,53 +212,78 @@
   function renderWeeks(M) {
     // Count 4 weekly paydays (or 2 biweekly) a month so a month with only that many paychecks still covers every bill in full.
     const Mc = state.income.reduce((t, r) => t + (+r.amount || 0) * (r.freq === 'weekly' ? 4 : r.freq === 'biweekly' ? 2 : 1), 0) || M;
-    const GNOTE = { 'Your Four Walls': 'Move this money into the account you pay bills from.', 'Other recurring expenses': 'Same account.' };
+    const GNOTE = { 'Your Four Walls': 'Paid first, in full, before anything else. Move this money into the account you pay bills from.', 'Savings': 'Not optional. It is paid right after your Four Walls.', 'Catch up': 'These bills were short earlier. Put each amount toward the same bill it is named for.', 'Other recurring expenses': 'Phone, internet, subscriptions, and other bills. Same account.', 'More savings and goals': 'These get what is left. They are cut first when money is short.' };
+    const pct = (+state.tithePct || 0) / 100;
     const wsAll = weeksList(4);
-    (function () {
-      const st0 = wsAll[0].start, to = addDays(wsAll[3].end, 1); let from = st0;
-      state.income.forEach(r => Object.keys(r.actuals || {}).forEach(k => { const p = k.split('-'); const d = new Date(+p[0], +p[1] - 1, +p[2]); if (!isNaN(d) && d < from) from = d; }));
-      const by = {};
-      state.income.forEach(r => { if (!r.anchor) return; genPaydays(r, from, to).forEach(d => { const key = dISO(d), pl = +r.amount || 0, ac = (r.actuals && r.actuals[key] != null) ? +r.actuals[key] : null; const o = by[key] || (by[key] = { d, pl: 0, amt: 0 }); o.pl += pl; o.amt += ac != null ? ac : pl; }); });
-      const pct = (+state.tithePct || 0) / 100; let carry = 0;
-      wsAll.forEach(w => { w.catchup = 0; w.short = 0; w.owed = 0; });
-      Object.keys(by).sort().forEach(key => {
-        const o = by[key];
-        const need = stepsFor({ planned: o.pl, amt: o.pl }, null, Mc).filter(x => x.g === 'Your Four Walls' || x.g === 'Other recurring expenses').reduce((t, x) => t + x.amt, 0);
-        const avail = Math.max(0, o.amt * (1 - pct));
-        const payE = Math.min(need, avail), payC = Math.min(carry, avail - payE), shortNow = need - payE;
-        carry = carry - payC + shortNow;
-        const idx = Math.floor(((o.d - st0) / 86400000 + 0.5) / 7);
-        if (idx >= 0 && wsAll[idx]) { wsAll[idx].catchup += payC; wsAll[idx].short += shortNow; wsAll[idx].owed = carry; }
+    const st0 = wsAll[0].start, to = addDays(wsAll[3].end, 1);
+    let from = st0;
+    state.income.forEach(r => Object.keys(r.actuals || {}).forEach(k => { const p = k.split('-'); const d = new Date(+p[0], +p[1] - 1, +p[2]); if (!isNaN(d) && d < from) from = d; }));
+    const byWeek = {};
+    state.income.forEach(r => {
+      if (!r.anchor) return;
+      genPaydays(r, from, to).forEach(d => {
+        const k = Math.floor(((d - st0) / 86400000 + 0.5) / 7), key = dISO(d), pl = +r.amount || 0;
+        const ac = (r.actuals && r.actuals[key] != null) ? +r.actuals[key] : null;
+        const o = byWeek[k] || (byWeek[k] = { pl: 0, amt: 0 });
+        o.pl += pl; o.amt += ac != null ? ac : pl;
       });
-      let last = 0; wsAll.forEach(w => { if (w.checks.length) last = w.owed; else w.owed = last; });
-    })();
+    });
+    // Walk the weeks in order. Tithe, then Four Walls, then Savings, then catch-up on anything that was short, then the rest.
+    const carry = [], res = {};
+    const bump = (label, kind, amt, k) => { let c = carry.find(x => x.label === label); if (!c) { c = { label, kind, amt: 0, since: k }; carry.push(c); } c.amt += amt; };
+    Object.keys(byWeek).map(Number).sort((a, b) => a - b).forEach(k => {
+      const o = byWeek[k];
+      const full = stepsFor({ planned: o.pl, amt: 1e12 }, null, Mc);
+      let rem = Math.max(0, o.amt * (1 - pct));
+      const lines = [], shorts = [];
+      const pay = x => { const p = Math.min(x.amt, rem); rem -= p; return p; };
+      const tithe = full.find(x => x.id === 'tithe');
+      if (tithe) lines.push(Object.assign({}, tithe, { amt: o.amt * pct }));
+      const doBills = (g, kind) => full.filter(x => x.g === g).forEach(x => {
+        const p = pay(x), sh = x.amt - p;
+        if (sh > 0.5) { shorts.push({ label: x.label, amt: sh }); bump(x.label, kind, sh, k); }
+        lines.push(Object.assign({}, x, { amt: p, note: (sh > 0.5 ? 'Only ' + money0(p) + ' of ' + money0(x.amt) + ' fits this week. The other ' + money0(sh) + ' is caught up in the next weeks. ' : '') + (x.note || '') }));
+      });
+      const doCatch = kind => carry.filter(c => c.kind === kind && c.amt > 0.5).forEach(c => {
+        const p = Math.min(c.amt, rem);
+        if (p > 0.5) { rem -= p; c.amt -= p; lines.push({ g: 'Catch up', id: 'catch:' + c.label, label: 'Catch up: ' + c.label, amt: p, note: 'Short in the week of ' + fmtD(addDays(st0, c.since * 7)) + '. Pay this toward ' + c.label + '.' }); }
+      });
+      doBills('Your Four Walls', 'wall');
+      const sv = full.find(x => x.id === 'save');
+      if (sv) lines.push(Object.assign({}, sv, { g: 'Savings', amt: pay(sv) }));
+      doCatch('wall');
+      doBills('Other recurring expenses', 'exp');
+      doCatch('exp');
+      full.filter(x => x.id !== 'tithe' && x.id !== 'save' && x.g !== 'Your Four Walls' && x.g !== 'Other recurring expenses').forEach(x => { const p = pay(x), sh = x.amt - p; lines.push(Object.assign({}, x, { g: 'More savings and goals', amt: p, note: (sh > 0.5 ? (p < 0.5 ? 'Skipped this week. ' : 'Reduced this week. ') : '') + (x.note || '') })); });
+      res[k] = { lines, shorts, free: rem, owed: carry.filter(c => c.amt > 0.5).map(c => ({ label: c.label, amt: c.amt })) };
+    });
+    const names = list => list.map(x => E(x.label) + ' ' + money0(x.amt)).join(', ');
     const html = wsAll.map(w => {
       const has = w.checks.length > 0;
       const planned = w.checks.reduce((t, c) => t + c.planned, 0);
       const amt = w.checks.reduce((t, c) => t + (c.actual != null ? c.actual : c.planned), 0);
       const conf = has && w.checks.every(c => c.actual != null);
       const status = !has ? 'No pay expected' : conf ? (amt === 0 ? 'Did not come in' : 'Came in: ' + money0(amt)) : 'Waiting for pay';
+      const rec = res[w.i];
       let body = '';
       if (has) {
         body += '<div class="card-note" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0"><button class="btn btn-sm" data-wk="came" data-i="' + w.i + '">It came in</button><button class="btn btn-ghost btn-sm" data-wk="none" data-i="' + w.i + '">It did not come in</button><span>or I got $</span><input type="number" min="0" step="0.01" data-wk="amt" data-i="' + w.i + '" value="' + (conf ? E(amt) : '') + '" placeholder="' + Math.round(planned) + '" style="width:100px">' + (w.checks.some(c => c.actual != null) ? '<button class="btn btn-ghost btn-sm" data-wk="reset" data-i="' + w.i + '">Undo</button>' : '') + '</div>';
         body += '<div class="card-note">' + w.checks.map(c => E(c.name) + ' ' + money0(c.planned)).join(' + ') + '</div>';
-        if (w.short > 0.5) body += '<div class="priority-note">Pay was short this week, so ' + money0(w.short) + ' of your bills could not be set aside. It moves to the next weeks and is added to the plan until it is paid.</div>';
-        if (w.owed > 0.5) body += '<div class="card-note">Still owed from missed pay after this week: <strong>' + money0(w.owed) + '</strong>. It keeps moving forward, into next month too, until it is paid.</div>';
-        if (amt > 0) {
-          const steps = stepsFor({ planned, amt, key: dISO(w.start), catchup: w.catchup }, null, Mc);
-          const used = steps.reduce((t, s) => t + Math.round(s.amt), 0), free = Math.round(amt) - used;
-          let lastG = '';
-          body += steps.map((s, n) => {
-            const k = 'w|' + dISO(w.start) + '|' + s.id, done = !!state.ppDone[k];
-            const head = s.g !== lastG ? '<div style="margin:12px 0 2px;font-weight:700;color:var(--green)">' + E(s.g) + '</div>' + (GNOTE[s.g] ? '<div class="card-note" style="margin:0 0 4px">' + E(GNOTE[s.g]) + '</div>' : '') : '';
-            lastG = s.g;
-            return head + '<div class="ppstep' + (done ? ' done' : '') + '"><label><input type="checkbox" data-k="' + E(k) + '" ' + (done ? 'checked' : '') + '><span class="t">' + (n + 1) + '. ' + E(s.label) + ' <span class="n">' + E(s.note || '') + '</span></span></label><span class="a">' + money0(s.amt) + '</span></div>';
-          }).join('') + '<div class="ppfree' + (free < 0 ? ' neg' : '') + '"><span>' + (free < 0 ? 'Short by this amount' : 'Left for everyday spending this week') + '</span><span>' + money0(Math.abs(free)) + '</span></div>';
-        } else if (conf) body += '<div class="card-note">No pay this week, so nothing to set aside.</div>';
       }
+      if (rec && rec.shorts.length) body += '<div class="priority-note">Short this week, so these could not be fully paid: <strong>' + names(rec.shorts) + '</strong>. They are added back in the next weeks, and into next month too, until they are paid.</div>';
+      if (rec && rec.owed.length) body += '<div class="card-note">Still owed after this week: <strong>' + names(rec.owed) + '</strong>.</div>';
+      if (rec && amt > 0) {
+        let lastG = '', n = 0;
+        body += rec.lines.filter(s => s.amt > 0.5 || s.g === 'Your Four Walls' || s.id === 'tithe').map(s => {
+          const k = 'w|' + dISO(w.start) + '|' + s.id, done = !!state.ppDone[k];
+          const head = s.g !== lastG ? '<div style="margin:12px 0 2px;font-weight:700;color:var(--green)">' + E(s.g) + '</div>' + (GNOTE[s.g] ? '<div class="card-note" style="margin:0 0 4px">' + E(GNOTE[s.g]) + '</div>' : '') : '';
+          lastG = s.g; n++;
+          return head + '<div class="ppstep' + (done ? ' done' : '') + '"><label><input type="checkbox" data-k="' + E(k) + '" ' + (done ? 'checked' : '') + '><span class="t">' + n + '. ' + E(s.label) + ' <span class="n">' + E(s.note || '') + '</span></span></label><span class="a">' + money0(s.amt) + '</span></div>';
+        }).join('') + '<div class="ppfree"><span>Left for everyday spending this week</span><span>' + money0(rec.free) + '</span></div>';
+      } else if (has && conf) body += '<div class="card-note">No pay this week, so nothing could be set aside.</div>';
       return '<div class="card"><details' + (w.i === 0 ? ' open' : '') + '><summary style="cursor:pointer"><span class="card-title">Week ' + (w.i + 1) + ': ' + fmtD(w.start) + ' to ' + fmtD(w.end) + '</span> <span class="badge">' + E(status) + '</span> <strong style="float:right">' + (has ? money0(conf ? amt : planned) : '') + '</strong></summary>' + body + '</details></div>';
     }).join('');
-    return '<div class="card"><div class="card-title">Your pay, week by week</div><div class="card-note">Each week adds up all the pay you expect that week, from every income line. When pay lands, tap It came in, or type what you really got. Each week sets aside its share of every bill, counting 4 paydays a month, so even a month with only 4 paychecks covers every bill in full. A month with a 5th payday gives you extra. If the pay for a week is short or does not come in, the bills that were missed move to the next weeks, and into next month too, until they are paid. Tithe and your Four Walls come first, then everything else, and the bottom of the list is cut first if money is short.</div></div>' + html;
+    return '<div class="card"><div class="card-title">Your pay, week by week</div><div class="card-note">Each week adds up all the pay you expect that week, from every income line. When pay lands, tap It came in, or type what you really got. The order never changes: tithe, then your Four Walls, then savings, then any catch-up on bills that were short, then everything else. If money runs short, the other things are cut and the Four Walls are paid. What was short is named, added back in the next weeks, and carried into next month until it is paid.</div></div>' + html;
   }
   function actualBox(c) {
     return '<div class="card-note" style="margin:8px 0">' + c.parts.map(p => '<div style="margin:4px 0">' + E(p.name) + ': planned ' + money0(p.planned) + '. I actually got $ <input type="number" min="0" step="0.01" data-act="' + p.ri + '|' + p.key + '" value="' + (p.actual != null ? p.actual : '') + '" placeholder="' + Math.round(p.planned) + '" style="width:110px"></div>').join('') + '<div>Leave it empty if it matches the plan. Type the real amount when your pay lands and this check recalculates.</div></div>';
