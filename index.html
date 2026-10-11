@@ -64,6 +64,7 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
 <script src="calendar.js?v=5"></script>
 <script src="kidmoney.js?v=1"></script>
 <script src="people.js?v=1"></script>
+<script src="receipts.js?v=1"></script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -188,7 +189,7 @@ window.addEventListener('message',e=>{
       const kf=document.getElementById('kframe'); if(kf&&kf.contentWindow)kf.contentWindow.postMessage({type:'kitchen-spend',spend:grocSpend()},location.origin);
     }
   }
-  else if(m.type==='money-save'){ if(S.mdata&&S.mdata.groceryReceipts&&m.data&&!m.data.groceryReceipts)m.data.groceryReceipts=S.mdata.groceryReceipts; saveMoney(m.data); }
+  else if(m.type==='money-save'){ if(S.mdata&&S.mdata.groceryReceipts&&m.data&&!m.data.groceryReceipts)m.data.groceryReceipts=S.mdata.groceryReceipts; if(S.mdata&&S.mdata.receipts&&m.data&&!m.data.receipts)m.data.receipts=S.mdata.receipts; saveMoney(m.data); }
 });
 function grocSpend(){
   if(!seesMoney()||!S.mdata)return null;
@@ -207,7 +208,7 @@ function navItems(){
   if(kid||staff) return [['tasks','My tasks'],['cal','Command Center']].concat(kid?[['km','My money'],['add','Add what I need'],['dinner','Dinner']]:[]);
   const n=[['cal','Command Center'],['k:dashboard','Kitchen']];
   if(S.members.some(m=>m.role==='kid'))n.push(['km',"Kids' money"]);
-  if(seesMoney())n.push(['money','Money']);
+  if(seesMoney()){n.push(['money','Money']);n.push(['receipts','Receipts']);}
   n.push(['people','People']);
   return n;
 }
@@ -236,6 +237,7 @@ function render(){
     });
   }
   else if(S.page==='money'&&seesMoney()) m.innerHTML='<iframe id="mframe" src="money.html?v='+Date.now()+'" title="Money"></iframe>';
+  else if(S.page==='receipts'&&seesMoney()) m.innerHTML=receiptsView();
   else if(S.page==='people') m.innerHTML=peopleView();
   else if(S.page==='km') m.innerHTML=kmView();
   else if(S.page==='cal'||S.page==='home') m.innerHTML=calView()+openList();
@@ -293,6 +295,7 @@ function bind(){
   if(typeof calBind==='function')calBind();
   if(typeof kmBind==='function')kmBind();
   if(typeof peopleBind==='function')peopleBind();
+  if(typeof receiptsBind==='function')receiptsBind();
 }
 sb.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_IN'&&!S.user)load() });
 load();
