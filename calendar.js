@@ -18,6 +18,7 @@
   const todayISO = () => iso(new Date());
   const tm = v => { if (!v) return ''; const p = String(v).split(':'), h = +p[0]; return ((h + 11) % 12 + 1) + ':' + pad(+p[1] || 0) + (h >= 12 ? ' PM' : ' AM'); };
   const canManage = () => S.me && ['owner', 'adult'].includes(S.me.role);
+  const canAdd = () => canManage() || !!(S.cal && S.cal.perms && S.me && S.cal.perms[S.user.id]);
   const moneyOK = () => S.me && S.me.can_see_money && S.mdata;
 
   const css = document.createElement('style');
@@ -44,6 +45,7 @@
     } catch (e) { S.cal = {}; }
     if (!Array.isArray(S.cal.items)) S.cal.items = [];
     if (!S.cal.done) S.cal.done = {};
+    if (!S.cal.perms) S.cal.perms = {};
     if (!S.calM) { const n = new Date(); S.calM = { y: n.getFullYear(), m: n.getMonth() }; }
     if (!S.calSel) S.calSel = todayISO();
   };
@@ -110,7 +112,7 @@
     const can = it.tid || (it.key && canManage());
     const box = can ? '<button class="chk ' + (it.done ? 'done' : '') + '" ' + (it.tid ? 'data-tk="' + it.tid + '"' : 'data-ck="' + esc(it.key) + '"') + ' aria-label="Mark done">' + (it.done ? '&#10003;' : '') + '</button>' : '<span style="flex:0 0 28px"></span>';
     const dl = showDate ? '<div class="note">' + DN[pd(ds).getDay()] + ' ' + MN[pd(ds).getMonth()].slice(0, 3) + ' ' + pd(ds).getDate() + '</div>' : '';
-    const rm = it.rm && canManage() ? '<button class="btn ghost" style="min-height:32px;padding:0 10px" data-rm="' + esc(it.rm) + '" aria-label="Remove">&#10005;</button>' : '';
+    const rm = it.rm && canAdd() ? '<button class="btn ghost" style="min-height:32px;padding:0 10px" data-rm="' + esc(it.rm) + '" aria-label="Remove">&#10005;</button>' : '';
     return '<div class="cal-row">' + box + '<div style="flex:1"><div class="' + (it.done ? 'done-t' : '') + '" style="font-weight:600"><span class="cal-tag" style="background:' + t[1] + '">' + t[0] + '</span>' + esc(it.title) + (it.who ? '<span class="chip">' + esc(who(it.who)) + '</span>' : '') + '</div>' + dl + '</div>' + rm + '</div>';
   }
 
@@ -169,19 +171,21 @@
     }
     const sel = S.calSel, selItems = itemsOn(sel);
     const selLabel = DN[pd(sel).getDay()] + ', ' + MN[pd(sel).getMonth()] + ' ' + pd(sel).getDate();
-    const add = !canManage() ? '' : '<div class="card" style="margin-top:18px"><h2>Add to the Command Center</h2>' +
+    const add = !canAdd() ? '' : '<div class="card" style="margin-top:18px"><h2>Add to the Command Center</h2>' +
       '<label for="cf_title">What</label><input id="cf_title" placeholder="Dentist, Mom birthday, change air filter">' +
-      '<div class="cal-two"><div><label for="cf_type">Type</label><select id="cf_type"><option value="todo">Task</option><option value="appointment">Appointment</option><option value="birthday">Birthday</option><option value="anniversary">Anniversary</option><option value="maintenance">Maintenance</option></select></div>' +
+      '<div class="cal-two"><div><label for="cf_type">Type</label><select id="cf_type">' + (canManage() ? '<option value="todo">Task</option><option value="appointment">Appointment</option>' : '<option value="event">Family activity</option>') + '<option value="birthday">Birthday</option><option value="anniversary">Anniversary</option><option value="maintenance">Maintenance</option></select></div>' +
       '<div><label for="cf_date">Date (use the real date for a birthday or anniversary)</label><input id="cf_date" type="date" value="' + sel + '"></div></div>' +
       '<div id="cf_timewrap" style="display:none"><label for="cf_time">Time</label><input id="cf_time" type="time"></div>' +
       '<div class="cal-two"><div><label for="cf_who">Who</label><select id="cf_who"><option value="">Everyone</option>' + S.members.map(x => '<option value="' + x.user_id + '">' + (x.user_id === S.user.id ? 'Me' : esc(who(x.user_id))) + '</option>').join('') + '</select></div>' +
       '<div id="cf_repwrap"><label for="cf_rep">Repeats</label><select id="cf_rep"><option value="none">Does not repeat</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year</option><option value="months">Every few months</option></select></div></div>' +
       '<div id="cf_everywrap" style="display:none"><label for="cf_every">Every how many months</label><input id="cf_every" type="number" min="1" value="6"></div>' +
       '<div style="margin-top:14px"><button class="btn" id="cf_add">Add</button></div></div>';
+    const others = S.members.filter(x => !['owner', 'adult'].includes(x.role) && x.user_id !== S.user.id);
+    const perm = !canManage() || !others.length ? '' : '<div class="card" style="margin-top:18px"><h2>Who else can add</h2><p class="note">Only you can add to the Command Center unless you tick someone here.</p>' + others.map(x => '<label style="display:flex;gap:10px;align-items:center;margin:8px 0"><input type="checkbox" style="width:22px;min-height:22px" data-perm="' + x.user_id + '" ' + (S.cal.perms[x.user_id] ? 'checked' : '') + '>' + esc(who(x.user_id)) + ' (' + esc(x.role) + ')</label>').join('') + '</div>';
     return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>Command Center.</h1><div class="rule"></div>' + calToday() +
       '<div class="card"><div class="cal-nav"><button class="btn ghost" data-cm="-1">&#8249;</button><h2 style="min-width:190px">' + MN[m] + ' ' + y + '</h2><button class="btn ghost" data-cm="1">&#8250;</button><button class="btn ghost" data-cm="0">Today</button></div>' +
       '<div class="cal-grid">' + DN.map(d => '<div class="cal-h">' + d + '</div>').join('') + cells + '</div></div>' +
-      '<div class="card" style="margin-top:18px"><h2>' + selLabel + '</h2>' + (selItems.map(it => rowHtml(it, sel, false)).join('') || '<p class="note">Nothing on this day.</p>') + '</div>' + add;
+      '<div class="card" style="margin-top:18px"><h2>' + selLabel + '</h2>' + (selItems.map(it => rowHtml(it, sel, false)).join('') || '<p class="note">Nothing on this day.</p>') + '</div>' + add + perm;
   };
 
   window.calBind = function () {
@@ -220,6 +224,7 @@
         };
       }
     }
+    document.querySelectorAll('[data-perm]').forEach(b => b.onchange = async () => { S.cal.perms[b.dataset.perm] = b.checked; await saveCal(); render(); });
     document.querySelectorAll('[data-meal]').forEach(b => b.onclick = () => showRecipe(b.dataset.mday, b.dataset.meal));
     document.querySelectorAll('[data-ck]').forEach(b => b.onclick = async () => {
       const k = b.dataset.ck; if (S.cal.done[k]) delete S.cal.done[k]; else S.cal.done[k] = true;
