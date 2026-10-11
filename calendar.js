@@ -19,6 +19,7 @@
   const tm = v => { if (!v) return ''; const p = String(v).split(':'), h = +p[0]; return ((h + 11) % 12 + 1) + ':' + pad(+p[1] || 0) + (h >= 12 ? ' PM' : ' AM'); };
   const canManage = () => S.me && ['owner', 'adult'].includes(S.me.role);
   const canAdd = () => canManage() || !!(S.cal && S.cal.perms && S.me && S.cal.perms[S.user.id]);
+  const isKid = () => !!(S.me && S.me.role === 'kid');
   const moneyOK = () => S.me && S.me.can_see_money && S.mdata;
 
   const css = document.createElement('style');
@@ -109,10 +110,10 @@
 
   function rowHtml(it, ds, showDate) {
     const t = TYPES[it.type] || ['', '#666'];
-    const can = it.tid || (it.key && canManage());
+    const can = (it.tid && (canManage() || it.who === S.user.id)) || (it.key && canManage());
     const box = can ? '<button class="chk ' + (it.done ? 'done' : '') + '" ' + (it.tid ? 'data-tk="' + it.tid + '"' : 'data-ck="' + esc(it.key) + '"') + ' aria-label="Mark done">' + (it.done ? '&#10003;' : '') + '</button>' : '<span style="flex:0 0 28px"></span>';
     const dl = showDate ? '<div class="note">' + DN[pd(ds).getDay()] + ' ' + MN[pd(ds).getMonth()].slice(0, 3) + ' ' + pd(ds).getDate() + '</div>' : '';
-    const rm = it.rm && canAdd() ? '<button class="btn ghost" style="min-height:32px;padding:0 10px" data-rm="' + esc(it.rm) + '" aria-label="Remove">&#10005;</button>' : '';
+    const rm = it.rm && (canAdd() || it.who === S.user.id) ? '<button class="btn ghost" style="min-height:32px;padding:0 10px" data-rm="' + esc(it.rm) + '" aria-label="Remove">&#10005;</button>' : '';
     return '<div class="cal-row">' + box + '<div style="flex:1"><div class="' + (it.done ? 'done-t' : '') + '" style="font-weight:600"><span class="cal-tag" style="background:' + t[1] + '">' + t[0] + '</span>' + esc(it.title) + (it.who ? '<span class="chip">' + esc(who(it.who)) + '</span>' : '') + '</div>' + dl + '</div>' + rm + '</div>';
   }
 
@@ -171,9 +172,9 @@
     }
     const sel = S.calSel, selItems = itemsOn(sel);
     const selLabel = DN[pd(sel).getDay()] + ', ' + MN[pd(sel).getMonth()] + ' ' + pd(sel).getDate();
-    const add = !canAdd() ? '' : '<div class="card" style="margin-top:18px"><h2>Add to the Command Center</h2>' +
+    const add = !(canAdd() || isKid()) ? '' : '<div class="card" style="margin-top:18px"><h2>Add to the Command Center</h2>' +
       '<label for="cf_title">What</label><input id="cf_title" placeholder="Dentist, Mom birthday, change air filter">' +
-      '<div class="cal-two"><div><label for="cf_type">Type</label><select id="cf_type">' + (canManage() ? '<option value="todo">Task</option><option value="appointment">Appointment</option>' : '<option value="event">Family activity</option>') + '<option value="birthday">Birthday</option><option value="anniversary">Anniversary</option><option value="maintenance">Maintenance</option></select></div>' +
+      '<div class="cal-two"><div><label for="cf_type">Type</label><select id="cf_type">' + (canManage() || isKid() ? '<option value="todo">Task</option><option value="appointment">Appointment</option>' : '<option value="event">Family activity</option>') + '<option value="birthday">Birthday</option><option value="anniversary">Anniversary</option><option value="maintenance">Maintenance</option></select></div>' +
       '<div><label for="cf_date">Date (use the real date for a birthday or anniversary)</label><input id="cf_date" type="date" value="' + sel + '"></div></div>' +
       '<div id="cf_timewrap" style="display:none"><label for="cf_time">Time</label><input id="cf_time" type="time"></div>' +
       '<div class="cal-two"><div><label for="cf_who">Who</label><select id="cf_who"><option value="">Everyone</option>' + S.members.map(x => '<option value="' + x.user_id + '">' + (x.user_id === S.user.id ? 'Me' : esc(who(x.user_id))) + '</option>').join('') + '</select></div>' +
@@ -199,6 +200,7 @@
       document.querySelectorAll('[data-day]').forEach(b => b.onclick = () => { S.calSel = b.dataset.day; render(); });
       const ty = document.getElementById('cf_type');
       if (ty) {
+        if (!canAdd()) { const wh = document.getElementById('cf_who'); if (wh && wh.parentNode) wh.parentNode.style.display = 'none'; }
         const sync = () => {
           const v = ty.value, rep = document.getElementById('cf_rep');
           const plain = (v === 'birthday' || v === 'anniversary' || v === 'todo' || v === 'appointment');
@@ -208,10 +210,10 @@
         };
         ty.onchange = sync; document.getElementById('cf_rep').onchange = sync; sync();
         document.getElementById('cf_add').onclick = async () => {
-          const title = document.getElementById('cf_title').value.trim(), date = document.getElementById('cf_date').value, type = ty.value, w = document.getElementById('cf_who').value;
+          const title = document.getElementById('cf_title').value.trim(), date = document.getElementById('cf_date').value, type = ty.value, w = canAdd() ? document.getElementById('cf_who').value : S.user.id;
           if (!title || !date) { alert('Type what it is and pick a date.'); return; }
           if (type === 'todo' || type === 'appointment') {
-            const { error } = await sb.from('tasks').insert({ household_id: S.me.household_id, title, assigned_to: w || null, due_date: date, kind: type === 'appointment' ? 'appointment' : 'task', due_time: type === 'appointment' ? (document.getElementById('cf_time').value || null) : null });
+            const { error } = await sb.from('tasks').insert({ household_id: S.me.household_id, title, assigned_to: w || null, shared: canManage(), due_date: date, kind: type === 'appointment' ? 'appointment' : 'task', due_time: type === 'appointment' ? (document.getElementById('cf_time').value || null) : null });
             if (error) { alert(error.message); return; }
             await loadTasks();
           } else {
