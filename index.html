@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Household COO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--blue:#2f5fa0;--blue-d:#24498a;--blue-m:#4a76b8;--light:#DCE6F1;--line:#b9cbe4;--bg:#FFFFFF;--bg2:#F3F6FB;--track:#e1e8f3;--gold:#C59B27;--gold-l:#F0D58C;--gold-d:#6d5410;--ink:#1c2433;--mute:#46506a;--red:#8f3a2f}
+*{box-sizing:border-box}
+body{margin:0;font-family:Jost,sans-serif;background:var(--bg2);color:var(--ink);font-size:16px}
+h1,h2,h3{font-family:'Cormorant Garamond',serif;color:var(--blue);margin:0}
+h1{font-size:44px;line-height:1.05}h2{font-size:28px}
+button,input,select,textarea{font-family:inherit;font-size:16px}
+.btn{min-height:46px;padding:0 20px;border:0;border-radius:12px;background:var(--blue);color:#fff;font-weight:600;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--blue);border:2px solid var(--line)}
+.btn:disabled{opacity:.5}
+input,select,textarea{min-height:46px;padding:0 14px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);width:100%}
+textarea{padding:12px 14px;min-height:80px}
+label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
+.card{background:#fff;border:1px solid #e6dba9;border-radius:18px;padding:22px;box-shadow:0 8px 30px rgba(20,48,92,.08)}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-d);font-weight:600}
+.rule{width:72px;height:3px;background:var(--gold);margin:10px 0 14px}
+.center{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.center .card{max-width:440px;width:100%}
+#app{display:flex;min-height:100vh}
+#side{width:250px;flex:0 0 250px;background:linear-gradient(180deg,#3566ac,#24498a);border-right:3px solid var(--gold);color:#fff;padding:24px 16px;display:flex;flex-direction:column;gap:6px}
+#side .brand{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:700;line-height:1;margin:6px 8px 0}
+#side .by{font-size:11px;letter-spacing:.16em;color:var(--gold-l);margin:6px 8px 22px}
+#side a{display:block;padding:12px 14px;border-radius:12px;color:#fff;cursor:pointer;font-weight:500}
+#side a.on{background:var(--gold);color:#10203d;font-weight:600}
+#me{margin-top:auto;border:1px solid rgba(255,255,255,.3);border-radius:12px;padding:12px;font-size:13px}
+#main{flex:1;padding:36px 44px;max-width:1100px}
+.row{display:flex;gap:12px;align-items:flex-start;padding:14px 0;border-top:1px solid var(--track)}
+.row:first-child{border-top:0}
+.chk{flex:0 0 28px;width:28px;height:28px;border-radius:8px;border:2px solid var(--blue);background:#fff;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.chk.done{background:var(--blue)}
+.done-t{text-decoration:line-through;color:var(--mute)}
+.note{font-size:14px;color:var(--mute);margin-top:2px}
+.chip{display:inline-block;background:#E7ECF5;color:var(--blue);font-size:12px;font-weight:600;border-radius:99px;padding:3px 10px;margin-left:6px}
+.soon{border:2px dashed var(--line);background:transparent;box-shadow:none}
+.err{color:var(--red);font-size:14px;margin-top:10px}
+@media(max-width:760px){
+  #app{flex-direction:column}
+  #side{width:auto;flex:none;flex-direction:row;flex-wrap:wrap;padding:10px;border-right:0;border-bottom:3px solid var(--gold)}
+  #side .brand,#side .by,#me{display:none}
+  #side a{padding:10px 12px}
+  #main{padding:22px 16px}h1{font-size:36px}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sb=supabase.createClient(COO_CONFIG.SUPABASE_URL,COO_CONFIG.SUPABASE_PUBLISHABLE_KEY);
+let S={user:null,hh:null,me:null,members:[],tasks:[],page:'home'};
+
+// ---------- screens ----------
+function signIn(msg){
+  $('#root').innerHTML=`<div class="center"><div class="card">
+  <div class="eyebrow">Household COO · by Prep &amp; Purpose</div><h1>Welcome.</h1><div class="rule"></div>
+  <p style="color:var(--mute)">Type your email. We send you a link. Tap it and you are in. No password.</p>
+  <label for="em">Email</label><input id="em" type="email" autocomplete="email">
+  <div style="margin-top:16px"><button class="btn" id="go">Send my link</button></div>
+  <div class="err" id="msg">${esc(msg||'')}</div></div></div>`;
+  $('#go').onclick=async()=>{
+    const email=$('#em').value.trim(); if(!email)return;
+    $('#go').disabled=true;
+    const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
+    $('#msg').style.color=error?'':'var(--blue)';
+    $('#msg').textContent=error?error.message:'Link sent. Open your email and tap it.';
+    $('#go').disabled=false;
+  };
+}
+function createHousehold(){
+  $('#root').innerHTML=`<div class="center"><div class="card">
+  <div class="eyebrow">First time here</div><h1>Name your household.</h1><div class="rule"></div>
+  <label for="hn">Household name</label><input id="hn" placeholder="The Smith Household">
+  <label for="yn">Your name</label><input id="yn" placeholder="Vanessa">
+  <div style="margin-top:16px"><button class="btn" id="mk">Create it</button></div><div class="err" id="msg"></div></div></div>`;
+  $('#mk').onclick=async()=>{
+    const h_name=$('#hn').value.trim()||'My Household';
+    const {error}=await sb.rpc('create_household',{h_name});
+    if(error){$('#msg').textContent=error.message;return}
+    await sb.rpc('set_my_name',{n:$('#yn').value.trim()||'Owner'});
+    load();
+  };
+}
+
+// ---------- data ----------
+const isManager=()=>S.me&&['owner','adult'].includes(S.me.role);
+const seesMoney=()=>S.me&&S.me.can_see_money;
+async function load(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){signIn();return}
+  S.user=session.user;
+  const {data:mem,error}=await sb.from('household_members').select('*').eq('user_id',S.user.id);
+  if(error){signIn(error.message);return}
+  if(!mem.length){createHousehold();return}
+  S.me=mem[0];
+  const {data:hh}=await sb.from('households').select('*').eq('id',S.me.household_id).single();
+  S.hh=hh;
+  const {data:all}=await sb.from('household_members').select('*').eq('household_id',S.me.household_id);
+  S.members=all||[];
+  await loadTasks();
+  if(!S.me.display_name){const n=prompt('What name should the household see for you?');if(n){await sb.rpc('set_my_name',{n});S.me.display_name=n;const i=S.members.findIndex(x=>x.user_id===S.user.id);if(i>=0)S.members[i].display_name=n}}
+  S.page=S.me.role==='kid'?'tasks':'home';
+  shell();
+}
+async function loadTasks(){
+  const {data}=await sb.from('tasks').select('*').eq('household_id',S.me.household_id).order('created_at',{ascending:true});
+  S.tasks=data||[];
+}
+
+// ---------- shell ----------
+function navItems(){
+  const kid=S.me.role==='kid', staff=['helper','staff'].includes(S.me.role);
+  if(kid||staff) return [['tasks','My tasks']].concat(kid?[['add','Add what I need'],['dinner','Dinner']]:[]);
+  const n=[['home','Home'],['kitchen','Kitchen']];
+  if(seesMoney())n.push(['money','Money']);
+  n.push(['tasks','Tasks']);
+  return n;
+}
+function shell(){
+  $('#root').innerHTML=`<div id="app"><nav id="side"><div class="brand">Household<br>COO</div><div class="by">BY PREP &amp; PURPOSE</div>
+  ${navItems().map(([k,l])=>`<a data-p="${k}" class="${S.page===k?'on':''}">${l}</a>`).join('')}
+  <div id="me"><b>${esc(S.hh?.name)}</b><br>${esc(S.me.role)}${seesMoney()?' · sees money':''}<br><a id="out" style="padding:6px 0 0;color:var(--gold-l);font-size:13px">Sign out</a></div></nav>
+  <main id="main"></main></div>`;
+  document.querySelectorAll('#side a[data-p]').forEach(a=>a.onclick=()=>{S.page=a.dataset.p;shell()});
+  $('#out').onclick=async()=>{await sb.auth.signOut();S.user=null;signIn()};
+  render();
+}
+function render(){
+  const m=$('#main');
+  if(S.page==='tasks'||S.page==='home') m.innerHTML=tasksView(S.page==='home');
+  else if(S.page==='add') m.innerHTML=addView();
+  else m.innerHTML=soon(S.page);
+  bind();
+}
+function soon(p){
+  const t={kitchen:'Kitchen',money:'Money',dinner:'Dinner'}[p]||p;
+  return `<div class="eyebrow">${t}</div><h1>Coming next.</h1><div class="rule"></div>
+  <div class="card soon"><p style="margin:0;color:var(--mute)">This part is being moved in from ${p==='money'?'CFO Command Center':'Meal Builder Pro'} so everything shares one household.</p></div>`;
+}
+const nm=id=>{const m=S.members.find(x=>x.user_id===id);return m?(m.display_name||m.role):'Member'};
+function who(id){ if(!id)return 'Anyone'; return id===S.user.id?'You':nm(id) }
+function tasksView(home){
+  const mine=S.me.role==='kid'||['helper','staff'].includes(S.me.role);
+  const list=S.tasks; const open=list.filter(t=>t.status!=='done'), done=list.filter(t=>t.status==='done');
+  const add=`<div class="card" style="margin-bottom:18px"><h2>Add a task</h2>
+   <label for="tt">What needs doing</label><input id="tt">
+   ${mine?'':`<label for="th">Handoff note (so whoever does it knows exactly how)</label><textarea id="th"></textarea>
+   <label for="ta">Who has it</label><select id="ta"><option value="">Anyone</option>${S.members.map(x=>`<option value="${x.user_id}">${x.user_id===S.user.id?'Me':esc(nm(x.user_id))+' ('+esc(x.role)+')'}</option>`).join('')}</select>`}
+   <div style="margin-top:14px"><button class="btn" id="addt">Add task</button></div></div>`;
+  const row=t=>`<div class="row"><button class="chk ${t.status==='done'?'done':''}" data-t="${t.id}" aria-label="Mark done">${t.status==='done'?'&#10003;':''}</button>
+   <div style="flex:1"><div class="${t.status==='done'?'done-t':''}" style="font-weight:600">${esc(t.title)}<span class="chip">${who(t.assigned_to)}</span></div>
+   ${t.handoff_notes?`<div class="note">Note: ${esc(t.handoff_notes)}</div>`:''}</div></div>`;
+  return `<div class="eyebrow">${esc(S.hh.name)}</div><h1>${home?'Home.':(mine?'My tasks.':'Tasks.')}</h1><div class="rule"></div>
+  ${add}<div class="card"><h2>Open · ${open.length}</h2>${open.map(row).join('')||'<p class="note">Nothing open.</p>'}
+  ${done.length?`<h2 style="margin-top:18px">Done · ${done.length}</h2>${done.map(row).join('')}`:''}</div>`;
+}
+function addView(){
+  return `<div class="eyebrow">Add</div><h1>What do you need?</h1><div class="rule"></div>
+  <div class="card"><label for="tt">For school or the grocery list</label><input id="tt"><div style="margin-top:14px"><button class="btn" id="addt">Add</button></div></div>`;
+}
+function bind(){
+  const a=$('#addt');
+  if(a)a.onclick=async()=>{
+    const title=$('#tt').value.trim(); if(!title)return;
+    const kid=S.me.role==='kid';
+    const row={household_id:S.me.household_id,title,handoff_notes:$('#th')?.value.trim()||null,
+      assigned_to:kid?S.user.id:($('#ta')?.value||null)};
+    const {error}=await sb.from('tasks').insert(row);
+    if(error){alert(error.message);return}
+    await loadTasks();render();
+  };
+  document.querySelectorAll('.chk').forEach(b=>b.onclick=async()=>{
+    const t=S.tasks.find(x=>x.id===b.dataset.t);
+    await sb.from('tasks').update({status:t.status==='done'?'open':'done'}).eq('id',t.id);
+    await loadTasks();render();
+  });
+}
+sb.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_IN'&&!S.user)load() });
+load();
+</script>
+</body>
+</html>
