@@ -209,6 +209,8 @@
     ppSec.querySelectorAll('input[data-wk=amt]').forEach(el => el.onchange = () => { if (el.value === '') setWeek(+el.dataset.i, 'reset'); else setWeek(+el.dataset.i, 'amt', parseFloat(el.value) || 0); });
   }
   function renderWeeks(M) {
+    // Count 4 weekly paydays (or 2 biweekly) a month so a month with only that many paychecks still covers every bill in full.
+    const Mc = state.income.reduce((t, r) => t + (+r.amount || 0) * (r.freq === 'weekly' ? 4 : r.freq === 'biweekly' ? 2 : 1), 0) || M;
     const GNOTE = { 'Your Four Walls': 'Move this money into the account you pay bills from.', 'Other recurring expenses': 'Same account.' };
     const html = weeksList(4).map(w => {
       const has = w.checks.length > 0;
@@ -221,7 +223,7 @@
         body += '<div class="card-note" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0"><button class="btn btn-sm" data-wk="came" data-i="' + w.i + '">It came in</button><button class="btn btn-ghost btn-sm" data-wk="none" data-i="' + w.i + '">It did not come in</button><span>or I got $</span><input type="number" min="0" step="0.01" data-wk="amt" data-i="' + w.i + '" value="' + (conf ? E(amt) : '') + '" placeholder="' + Math.round(planned) + '" style="width:100px">' + (w.checks.some(c => c.actual != null) ? '<button class="btn btn-ghost btn-sm" data-wk="reset" data-i="' + w.i + '">Undo</button>' : '') + '</div>';
         body += '<div class="card-note">' + w.checks.map(c => E(c.name) + ' ' + money0(c.planned)).join(' + ') + '</div>';
         if (amt > 0) {
-          const steps = stepsFor({ planned, amt, key: dISO(w.start) }, null, M);
+          const steps = stepsFor({ planned, amt, key: dISO(w.start) }, null, Mc);
           const used = steps.reduce((t, s) => t + Math.round(s.amt), 0), free = Math.round(amt) - used;
           let lastG = '';
           body += steps.map((s, n) => {
@@ -234,7 +236,7 @@
       }
       return '<div class="card"><details' + (w.i === 0 ? ' open' : '') + '><summary style="cursor:pointer"><span class="card-title">Week ' + (w.i + 1) + ': ' + fmtD(w.start) + ' to ' + fmtD(w.end) + '</span> <span class="badge">' + E(status) + '</span> <strong style="float:right">' + (has ? money0(conf ? amt : planned) : '') + '</strong></summary>' + body + '</details></div>';
     }).join('');
-    return '<div class="card"><div class="card-title">Your pay, week by week</div><div class="card-note">Each week adds up all the pay you expect that week, from every income line. When pay lands, tap It came in, or type what you really got. Tithe and your Four Walls come first, then everything else, and the bottom of the list is cut first if money is short.</div></div>' + html;
+    return '<div class="card"><div class="card-title">Your pay, week by week</div><div class="card-note">Each week adds up all the pay you expect that week, from every income line. When pay lands, tap It came in, or type what you really got. Each week sets aside its share of every bill, counting 4 paydays a month, so even a month with only 4 paychecks covers every bill in full. A month with a 5th payday gives you extra. Tithe and your Four Walls come first, then everything else, and the bottom of the list is cut first if money is short.</div></div>' + html;
   }
   function actualBox(c) {
     return '<div class="card-note" style="margin:8px 0">' + c.parts.map(p => '<div style="margin:4px 0">' + E(p.name) + ': planned ' + money0(p.planned) + '. I actually got $ <input type="number" min="0" step="0.01" data-act="' + p.ri + '|' + p.key + '" value="' + (p.actual != null ? p.actual : '') + '" placeholder="' + Math.round(p.planned) + '" style="width:110px"></div>').join('') + '<div>Leave it empty if it matches the plan. Type the real amount when your pay lands and this check recalculates.</div></div>';
