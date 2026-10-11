@@ -1,0 +1,71 @@
+// Household COO: TV mode. A big, read-only family board for a TV or monitor. Shared items and meals only. No money.
+(function () {
+  const pad = n => String(n).padStart(2, '0');
+  const iso = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  let timer = null, clock = null;
+
+  const CSS = '<style>' +
+    'body{background:#14213d}' +
+    '#tv{min-height:100vh;color:#fff;padding:2.2vh 2.2vw;font-family:"Inter",system-ui,sans-serif}' +
+    '#tv .top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:2vh;border-bottom:3px solid #C59B27;padding-bottom:1.4vh}' +
+    '#tv .nm{font-family:"Cormorant Garamond",serif;font-size:clamp(28px,4.2vh,56px);font-weight:700}' +
+    '#tv .dt{font-size:clamp(16px,2.6vh,34px);color:#e8d9a8}' +
+    '#tv .tm{font-family:"Cormorant Garamond",serif;font-size:clamp(34px,6.4vh,84px);font-weight:700;color:#C59B27;line-height:1}' +
+    '#tv .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1.4vh 1vw}' +
+    '#tv .day{background:#1d2d52;border-radius:14px;padding:1.4vh 1vw;min-height:22vh}' +
+    '#tv .day.today{background:#fff;color:#14213d;box-shadow:0 0 0 4px #C59B27}' +
+    '#tv .dh{display:flex;justify-content:space-between;align-items:baseline;font-weight:800;font-size:clamp(17px,2.7vh,32px);margin-bottom:1vh;border-bottom:2px solid #C59B27;padding-bottom:.6vh}' +
+    '#tv .dh span{font-size:.7em;font-weight:600;opacity:.75}' +
+    '#tv .ml{font-size:clamp(14px,2.1vh,26px);margin:.6vh 0;line-height:1.25}' +
+    '#tv .ml b{display:inline-block;min-width:1.4em;text-align:center;background:#2f7d4f;color:#fff;border-radius:6px;padding:0 .3em;margin-right:.4em;font-size:.8em}' +
+    '#tv .it{font-size:clamp(15px,2.3vh,28px);margin:.8vh 0;line-height:1.25;font-weight:600}' +
+    '#tv .it.done{text-decoration:line-through;opacity:.5}' +
+    '#tv .none{opacity:.5;font-size:clamp(13px,1.9vh,22px)}' +
+    '#tv .x{position:fixed;right:10px;top:8px;background:transparent;border:0;color:#fff;opacity:.15;font-size:22px;cursor:pointer}' +
+    '#tv .x:hover{opacity:.9}' +
+    '</style>';
+
+  function html() {
+    const now = new Date();
+    let cols = '';
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i), ds = iso(d);
+      const r = (typeof cooDay === 'function') ? cooDay(ds) : { items: [], meals: [] };
+      const meals = r.meals.map(x => '<div class="ml"><b>' + esc(x.slot[0].toUpperCase()) + '</b>' + esc(x.m.title || 'Meal') + '</div>').join('');
+      const items = r.items.map(x => '<div class="it' + (x.done ? ' done' : '') + '">' + esc(x.title) + '</div>').join('');
+      cols += '<div class="day' + (i === 0 ? ' today' : '') + '"><div class="dh">' + (i === 0 ? 'Today' : DAYS[d.getDay()]) + '<span>' + (d.getMonth() + 1) + '/' + d.getDate() + '</span></div>' +
+        meals + items + (!meals && !items ? '<div class="none">Nothing planned</div>' : '') + '</div>';
+    }
+    return CSS + '<div id="tv"><button class="x" id="tvx" aria-label="Close TV view">&#10005;</button>' +
+      '<div class="top"><div><div class="nm">' + esc((S.hh && S.hh.name) || 'Household') + '</div><div class="dt" id="tvdate"></div></div><div class="tm" id="tvtime"></div></div>' +
+      '<div class="grid">' + cols + '</div></div>';
+  }
+  function tick() {
+    const n = new Date(), t = document.getElementById('tvtime'), d = document.getElementById('tvdate');
+    if (t) { let h = n.getHours(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; t.textContent = h + ':' + pad(n.getMinutes()) + ' ' + ap; }
+    if (d) d.textContent = DAYS[n.getDay()] + ', ' + MONTHS[n.getMonth()] + ' ' + n.getDate();
+  }
+  function draw() {
+    document.getElementById('root').innerHTML = html();
+    document.getElementById('tvx').onclick = stop;
+    tick();
+  }
+  function stop() {
+    clearInterval(timer); clearInterval(clock);
+    S.tv = false;
+    if (/[?&]tv=1/.test(location.search)) location.href = location.pathname; else { shell(); render(); }
+  }
+  async function refresh() {
+    try { await loadTasks(); await loadKitchen(); await loadCal(); } catch (e) { console.warn(e); }
+    if (S.tv) draw();
+  }
+  window.tvStart = function () {
+    S.tv = true; draw();
+    clearInterval(timer); clearInterval(clock);
+    timer = setInterval(refresh, 60000);
+    clock = setInterval(tick, 15000);
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(() => { }); } catch (e) { }
+  };
+})();
