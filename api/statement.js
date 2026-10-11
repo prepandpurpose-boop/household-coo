@@ -62,6 +62,26 @@ const REPORT_TOOL = {
   }
 };
 
+const SPEND_CATS = ['10% Tithe','Shelter (Wall 1)','Food (Wall 2)','Utilities (Wall 3)','Transportation (Wall 4)','Health Insurance','Life Insurance','Debt Minimums','Phone & Internet','Streaming & Subscriptions','Memberships & Dues','Insurance (Other)','Personal & Discretionary','Other Recurring','Eating out & coffee','Shopping & household','Other everyday','Transfers & savings','Income & refunds'];
+function categorizePrompt(list) {
+  return `Sort each store or payer below into exactly one category. Categories (use the exact words):
+${SPEND_CATS.join('\n')}
+
+Guidance:
+- Grocery stores (Aldi, Kroger, Food Lion, Harris Teeter, Publix, Costco food) are "Food (Wall 2)".
+- Gas stations and car payments are "Transportation (Wall 4)". Rent or mortgage is "Shelter (Wall 1)". Electric, water, gas utility are "Utilities (Wall 3)".
+- Restaurants, fast food, coffee shops, delivery apps are "Eating out & coffee".
+- Amazon, Target, Walmart, home goods, clothing are "Shopping & household". Anything unclear is "Other everyday".
+- Church, tithe, offering is "10% Tithe".
+- Phone and internet providers are "Phone & Internet". Netflix, Spotify and similar are "Streaming & Subscriptions". Gym and clubs are "Memberships & Dues".
+- Credit card payments, transfers between accounts, savings transfers, Zelle or Venmo between family accounts are "Transfers & savings".
+- Paychecks, deposits, refunds are "Income & refunds".
+
+Each line is: number|name|how many times|total (negative is money out). Reply with one line per input in the form number|Category. Nothing else.
+
+${list}`;
+}
+
 async function anthropic(body) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -130,6 +150,13 @@ module.exports = async (req, res) => {
         system: SUMMARY_SYSTEM,
         messages: [{ role: 'user', content: summaryPrompt(today, lines) }]
       });
+      return res.status(200).json({ text: out });
+    }
+
+    if (body.mode === 'categorize') {
+      const list = String(body.list || '').slice(0, 60000);
+      if (!list.trim()) return res.status(400).json({ error: 'Nothing to sort.' });
+      const out = await anthropic({ max_tokens: 6000, messages: [{ role: 'user', content: categorizePrompt(list) }] });
       return res.status(200).json({ text: out });
     }
 
