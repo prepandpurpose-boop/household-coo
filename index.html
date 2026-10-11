@@ -61,7 +61,7 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
-<script src="calendar.js?v=3"></script>
+<script src="calendar.js?v=4"></script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -258,7 +258,7 @@ function bind(){
     const title=$('#tt').value.trim(); if(!title)return;
     const kid=S.me.role==='kid';
     const row={household_id:S.me.household_id,title,handoff_notes:$('#th')?.value.trim()||null,
-      assigned_to:kid?S.user.id:($('#ta')?.value||null),due_date:$('#td')?.value||null,kind:$('#tk')?.value||'task',due_time:$('#tt2')?.value||null};
+      assigned_to:kid?S.user.id:($('#ta')?.value||null),due_date:$('#td')?.value||null,kind:$('#tk')?.value||'task',due_time:$('#tt2')?.value||null,shared:isManager()};
     const {error}=await sb.from('tasks').insert(row);
     if(error){alert(error.message);return}
     await loadTasks();render();
