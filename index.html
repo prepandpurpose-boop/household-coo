@@ -161,7 +161,19 @@ window.addEventListener('message',e=>{
   }else if(m.type==='kitchen-save'){ saveKitchen(m.data); }
   else if(m.type==='money-ready'){
     const mf=document.getElementById('mframe');
-    if(mf&&e.source===mf.contentWindow&&seesMoney())mf.contentWindow.postMessage({type:'money-init',data:S.mdata},location.origin);
+    if(mf&&e.source===mf.contentWindow&&seesMoney()){
+      try{
+        const w=mf.contentWindow, of=w.fetch.bind(w);
+        w.fetch=async(u,o)=>{
+          if(String(u).includes('/api/statement')){
+            const {data:{session}}=await sb.auth.getSession();
+            o={...o,headers:{...(o&&o.headers),Authorization:'Bearer '+(session?session.access_token:'')}};
+          }
+          return of(u,o);
+        };
+      }catch(err){console.warn(err)}
+      mf.contentWindow.postMessage({type:'money-init',data:S.mdata},location.origin);
+    }
   }else if(m.type==='money-save'){ saveMoney(m.data); }
 });
 async function loadTasks(){
