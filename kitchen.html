@@ -883,6 +883,7 @@ window.addEventListener('load',()=>{try{parent.postMessage({type:'kitchen-ready'
 // ─── NAV ───────────────────────────────────────────────────────────────────────
 const PAGE_TITLES={dashboard:'Dashboard',inventory:'Inventory — Bases & Supports',pantry:'Kitchen Staples',builder:'Meal Builder',favorites:'Favorites',calendar:'Calendar',grocery:'Grocery List',guide:'How to Use'};
 function showPage(p){
+  if(p==='settings'){openSettings();return;}
   A.page=p;
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   const nb=document.getElementById('nav-'+p);if(nb)nb.classList.add('active');
@@ -3964,7 +3965,6 @@ function openSettings(){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px" id="st-goals">
       ${['High Protein','Low Carb','Low Fat','Mediterranean Diet'].map(g=>`<div class="diet-chip ${(A.dietaryGoals||[]).includes(g)?'selected':''}" data-pref="${g}" onclick="toggleDietChip(this)">${g}</div>`).join('')}
     </div>
-    <div class="section-head">P&P Spice Blends</div>
 
     <button class="btn btn-primary btn-full" style="margin-bottom:8px" onclick="saveSettings()">Save Settings</button>
     <div style="border-top:1px solid var(--border);margin:16px 0"></div>
