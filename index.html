@@ -207,14 +207,14 @@ function render(){
   m.classList.toggle('k',S.page.startsWith('k:')||(S.page==='money'&&seesMoney()));
   if(S.page.startsWith('k:')){
     const tabs=[['dashboard','Overview'],['inventory','Inventory'],['pantry','Staples'],['builder','Meal Builder'],['favorites','Favorites'],['calendar','Meal calendar'],['grocery','Grocery list']];
-    m.innerHTML='<div id="ksub">'+tabs.map(([k,l])=>`<a data-k="${k}" class="${S.page==='k:'+k?'on':''}">${l}</a>`).join('')+'</div><iframe id="kframe" src="kitchen.html" title="Kitchen"></iframe>';
+    m.innerHTML='<div id="ksub">'+tabs.map(([k,l])=>`<a data-k="${k}" class="${S.page==='k:'+k?'on':''}">${l}</a>`).join('')+'</div><iframe id="kframe" src="kitchen.html?v='+Date.now()+'" title="Kitchen"></iframe>';
     document.querySelectorAll('#ksub a').forEach(a=>a.onclick=()=>{
       const f=document.getElementById('kframe'); S.page='k:'+a.dataset.k;
       document.querySelectorAll('#ksub a').forEach(x=>x.classList.toggle('on',x===a));
       if(f&&f.contentWindow)f.contentWindow.postMessage({type:'kitchen-page',page:a.dataset.k},location.origin);
     });
   }
-  else if(S.page==='money'&&seesMoney()) m.innerHTML='<iframe id="mframe" src="money.html" title="Money"></iframe>';
+  else if(S.page==='money'&&seesMoney()) m.innerHTML='<iframe id="mframe" src="money.html?v='+Date.now()+'" title="Money"></iframe>';
   else if(S.page==='tasks'||S.page==='home') m.innerHTML=tasksView(S.page==='home');
   else if(S.page==='add') m.innerHTML=addView();
   else m.innerHTML=soon(S.page);
