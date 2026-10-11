@@ -131,6 +131,16 @@ window.addEventListener('message',e=>{
   const m=e.data||{};
   const f=document.getElementById('kframe');
   if(m.type==='kitchen-ready'&&f&&e.source===f.contentWindow){
+    try{
+      const w=f.contentWindow, of=w.fetch.bind(w);
+      w.fetch=async(u,o)=>{
+        if(String(u).includes('/api/generate')){
+          const {data:{session}}=await sb.auth.getSession();
+          o={...o,headers:{...(o&&o.headers),Authorization:'Bearer '+(session?session.access_token:'')}};
+        }
+        return of(u,o);
+      };
+    }catch(err){console.warn(err)}
     f.contentWindow.postMessage({type:'kitchen-init',data:S.kdata,email:S.user.email,page:S.page.slice(2)},location.origin);
   }else if(m.type==='kitchen-save'){ saveKitchen(m.data); }
 });
