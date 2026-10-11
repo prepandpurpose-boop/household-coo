@@ -126,7 +126,7 @@ module.exports = async (req, res) => {
       const out = await anthropic({
         max_tokens: 8000,
         tools: [REPORT_TOOL],
-        tool_choice: { type: 'tool', name: 'report' },
+      
         system: SUMMARY_SYSTEM,
         messages: [{ role: 'user', content: summaryPrompt(today, lines) }]
       });
