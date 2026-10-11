@@ -61,6 +61,10 @@ const ITEM_PROMPT = `This is a photo of one grocery product, such as an empty co
 Give the plain product name. Read the package size from the label (for example 16 oz or 1 gal). If you cannot read a size, use 0 and an empty unit. Never guess a size.`;
 
 async function anthropic(body) {
+  const schema = body.tools && body.tools[0] && body.tools[0].input_schema;
+  const msgs = JSON.parse(JSON.stringify(body.messages));
+  const last = msgs[msgs.length - 1].content;
+  last.push({ type: 'text', text: 'Reply with ONLY one JSON object that matches this JSON schema. No other words, no code fences.\n' + JSON.stringify(schema) });
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -68,16 +72,17 @@ async function anthropic(body) {
       'x-api-key': process.env.ANTHROPIC_API_KEY,
       'anthropic-version': '2023-06-01'
     },
-    body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5', ...body })
+    body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5', max_tokens: body.max_tokens, messages: msgs })
   });
   const data = await r.json();
   if (!r.ok) {
-    console.log('anthropic error', r.status, JSON.stringify(data).slice(0, 300));
+    console.log('anthropic error', r.status, JSON.stringify(data).slice(0, 400));
     const err = new Error('anthropic'); err.status = r.status; throw err;
   }
-  const tool = (Array.isArray(data.content) ? data.content : []).find(b => b && b.type === 'tool_use');
-  if (!tool) { const err = new Error('noresult'); err.status = 502; throw err; }
-  return tool.input;
+  const text = (Array.isArray(data.content) ? data.content : []).filter(b => b && b.type === 'text').map(b => b.text).join('');
+  const i = text.indexOf('{'), j = text.lastIndexOf('}');
+  if (i < 0 || j < i) { const err = new Error('noresult'); err.status = 502; throw err; }
+  try { return JSON.parse(text.slice(i, j + 1)); } catch (e) { const err = new Error('badjson'); err.status = 502; throw err; }
 }
 
 module.exports = async (req, res) => {
