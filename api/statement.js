@@ -14,22 +14,15 @@ Rules:
 - Do not list running balances, daily totals, or summary rows. Only individual transactions.
 - Output only the lines. No headings, no explanation, no code fences.`;
 
-const SUMMARY_SYSTEM = `You help a household set up its budget from real bank transactions. You output only valid JSON, nothing else.`;
+const SUMMARY_SYSTEM = `You help a household set up its budget from real bank transactions. You always answer by calling the report tool.`;
 
 function summaryPrompt(today, lines) {
   return `Today is ${today}. Below are transactions from about three months of bank statements, possibly from more than one account. Format: date|description|amount. Money in is positive, money out is negative.
 Transfers between the household's own accounts (savings transfers, credit card payments from checking) are NOT income and NOT bills by themselves. Do not count a credit card payment as a bill if the card's own purchases are in the list.
 
-Find the household's regular money picture and return this JSON:
-{
- "monthsCovered": number,
- "income": [ { "source": string, "amount": number, "freq": "weekly"|"biweekly"|"monthly", "lastDate": "YYYY-MM-DD", "type": "Primary"|"Secondary/Side-Hustle" } ],
- "bills": [ { "name": string, "monthlyCost": number, "dueDay": number, "kind": "wall"|"expense", "tier": string, "variable": boolean } ],
- "debts": [ { "name": string, "minPayment": number } ],
- "notes": [ string ]
-}
+Find the household's regular money picture and call the report tool with it.
 Rules:
-- income.amount is the typical amount of ONE deposit, not a monthly total. Use freq from how often it really arrives. lastDate is the date of the most recent deposit.
+- income.amount is the typical amount of ONE deposit, not a monthly total. Use freq from how often it really arrives. lastDate is the date of the most recent deposit (YYYY-MM-DD).
 - Group deposits from the same payer as one income source. Ignore one-time deposits, refunds, and transfers; mention a big one-time deposit in notes.
 - bills are things paid every month or that clearly repeat. monthlyCost is the typical monthly amount. For things that vary (groceries, gas, utilities), use the average per month and set variable true and dueDay 0.
 - dueDay is the day of the month 1 to 31 it is usually paid. 0 if it has no fixed date.
@@ -43,6 +36,31 @@ Rules:
 TRANSACTIONS:
 ${lines}`;
 }
+
+const REPORT_TOOL = {
+  name: 'report',
+  description: 'Report the household money picture found in the transactions.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      monthsCovered: { type: 'number' },
+      income: { type: 'array', items: { type: 'object', properties: {
+        source: { type: 'string' }, amount: { type: 'number' },
+        freq: { type: 'string', enum: ['weekly', 'biweekly', 'monthly'] },
+        lastDate: { type: 'string' },
+        type: { type: 'string', enum: ['Primary', 'Secondary/Side-Hustle'] } },
+        required: ['source', 'amount', 'freq', 'lastDate', 'type'] } },
+      bills: { type: 'array', items: { type: 'object', properties: {
+        name: { type: 'string' }, monthlyCost: { type: 'number' }, dueDay: { type: 'number' },
+        kind: { type: 'string', enum: ['wall', 'expense'] }, tier: { type: 'string' }, variable: { type: 'boolean' } },
+        required: ['name', 'monthlyCost', 'dueDay', 'kind', 'tier', 'variable'] } },
+      debts: { type: 'array', items: { type: 'object', properties: {
+        name: { type: 'string' }, minPayment: { type: 'number' } }, required: ['name', 'minPayment'] } },
+      notes: { type: 'array', items: { type: 'string' } }
+    },
+    required: ['income', 'bills', 'debts', 'notes']
+  }
+};
 
 async function anthropic(body) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -60,7 +78,8 @@ async function anthropic(body) {
     const err = new Error('anthropic'); err.status = r.status; throw err;
   }
   const blocks = Array.isArray(data.content) ? data.content : [];
-  const text = blocks.filter(b => b && b.type === 'text').map(b => b.text).join('');
+  const tool = blocks.find(b => b && b.type === 'tool_use');
+  const text = tool ? JSON.stringify(tool.input) : blocks.filter(b => b && b.type === 'text').map(b => b.text).join('');
   console.log('anthropic ok', data.stop_reason, text.length);
   return text;
 }
@@ -106,6 +125,8 @@ module.exports = async (req, res) => {
       const today = /^\d{4}-\d{2}-\d{2}$/.test(body.today || '') ? body.today : new Date().toISOString().slice(0, 10);
       const out = await anthropic({
         max_tokens: 8000,
+        tools: [REPORT_TOOL],
+        tool_choice: { type: 'tool', name: 'report' },
         system: SUMMARY_SYSTEM,
         messages: [{ role: 'user', content: summaryPrompt(today, lines) }]
       });
