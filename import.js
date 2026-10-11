@@ -15,6 +15,7 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   let files = []; // {file, label}
   let found = null;
+  let pendingSpend = null, spendFailed = false;
 
   panel.innerHTML = `
   <div class="section-head"><h2>Import your bank statements</h2>
@@ -94,7 +95,7 @@
     try {
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
-        status.textContent = 'Step 1 of 2: reading file ' + (i + 1) + ' of ' + files.length + '. This takes a minute or two. Please wait and do not press the button again.';
+        status.textContent = 'Step 1 of 3: reading file ' + (i + 1) + ' of ' + files.length + '. This takes a minute or two. Please wait and do not press the button again.';
         const name = f.file.name.toLowerCase();
         let payload;
         if (name.endsWith('.csv') || f.file.type === 'text/csv') {
@@ -107,9 +108,22 @@
         const tag = (f.label || '').replace(/\|/g, ' ').trim();
         all = all.concat(lines.map(l => tag ? l + '|' + tag : l));
       }
-      status.textContent = 'Found ' + all.length + ' transactions. Step 2 of 2: putting your money picture together. Almost done, please keep waiting.';
+      status.textContent = 'Found ' + all.length + ' transactions. Step 2 of 3: putting your money picture together. Please keep waiting.';
       const today = new Date().toISOString().slice(0, 10);
       found = parseJson(await call({ mode: 'summarize', today, lines: all.join('\n') }));
+      pendingSpend = null; spendFailed = false;
+      try {
+        status.textContent = 'Step 3 of 3: sorting your spending by store. Almost done, please keep waiting.';
+        const agg = HC.prepSpend(all), keys = Object.keys(agg), cats = {}, unknown = [];
+        keys.forEach(k => { const c = HC.knownCat(k); if (c) cats[k] = c; else unknown.push(k); });
+        for (let i = 0; i < unknown.length; i += 120) {
+          const chunk = unknown.slice(i, i + 120);
+          const list = chunk.map((k, n) => (n + 1) + '|' + k + '|' + agg[k].count + '|' + agg[k].total.toFixed(2)).join('\n');
+          const txt = await call({ mode: 'categorize', list });
+          txt.split('\n').forEach(l => { const q = l.split('|'); const n = parseInt(q[0], 10); const c = (q[1] || '').trim(); if (n >= 1 && n <= chunk.length) cats[chunk[n - 1]] = HC.ALL_CATS.includes(c) ? c : 'Other everyday'; });
+        }
+        pendingSpend = { agg, cats };
+      } catch (e2) { pendingSpend = null; spendFailed = true; }
       status.textContent = 'Done. I read ' + all.length + ' transactions. Your results are right below. Look them over, fix anything, then press the green button at the very bottom.';
       renderReview();
       try { $('impReview').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { }
@@ -166,6 +180,7 @@
         <input class="nm" value="${esc(r.name)}" style="flex:2 1 180px">
         <input class="am" value="${esc(num(r.minPayment).toFixed(2))}" style="flex:1 1 100px">
       </div>`).join('') + '<div class="card-note">Balances and interest rates are not on statements. You can fill them in on the Goals &amp; Debt tab.</div>' : '<div class="card-note">No debt payments found.</div>'}
+      ${pendingSpend ? '<label style="display:flex;gap:10px;align-items:center;margin-top:18px;cursor:pointer"><input type="checkbox" id="impSpend" checked style="width:22px;height:22px"><span>Also save my spending totals by store, so I can see where my money really goes on the Spending tab. The statements themselves are not kept.</span></label>' : (spendFailed ? '<div class="card-note" style="margin-top:14px">I could not sort your spending this time. Your bills and income below still work.</div>' : '')}
       <div style="margin-top:18px"><button class="btn btn-green" id="impAdd">Add what is checked to my Money</button> <span id="impDone" class="card-note" style="margin-left:10px"></span></div>
     </div>`;
     document.querySelectorAll('.impRow[data-k="bill"]').forEach(row => {
@@ -198,8 +213,11 @@
         added++;
       }
     });
+    let spendSaved = false;
+    const sp = document.getElementById('impSpend');
+    if (pendingSpend && sp && sp.checked) { HC.mergeSpend(pendingSpend.agg, pendingSpend.cats); spendSaved = true; }
     save();
     renderAll();
-    $('impDone').textContent = added + ' added' + (skipped ? ', ' + skipped + ' already in your Money and left alone' : '') + '. Open the Treasury tab to adjust anything.';
+    $('impDone').textContent = (spendSaved ? 'Spending totals saved. ' : '') + added + ' added' + (skipped ? ', ' + skipped + ' already in your Money and left alone' : '') + '. Open the Treasury tab to adjust anything.';
   }
 })();
