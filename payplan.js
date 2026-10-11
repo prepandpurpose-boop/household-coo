@@ -180,7 +180,7 @@
       '<div class="ppfree' + (free < 0 ? ' neg' : '') + '"><span>' + (free < 0 ? 'Short by this amount' : 'Left over for everyday spending') + '</span><span>' + money0(Math.abs(free) * 12 / 52) + ' a week · ' + money0(Math.abs(free)) + ' a month</span></div></div>';
   }
   function weeksList(n) {
-    const t = today0(), st = addDays(t, -((t.getDay() + 6) % 7)), en = addDays(st, n * 7), ws = [];
+    const t = today0(), st = t, en = addDays(st, n * 7), ws = [];
     for (let i = 0; i < n; i++) ws.push({ i, start: addDays(st, i * 7), end: addDays(st, i * 7 + 6), checks: [] });
     state.income.forEach((r, ri) => {
       if (!r.anchor) return;
