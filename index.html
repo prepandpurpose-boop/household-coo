@@ -61,7 +61,8 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
-<script src="calendar.js?v=4"></script>
+<script src="calendar.js?v=5"></script>
+<script src="kidmoney.js?v=1"></script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -186,8 +187,9 @@ async function loadTasks(){
 // ---------- shell ----------
 function navItems(){
   const kid=S.me.role==='kid', staff=['helper','staff'].includes(S.me.role);
-  if(kid||staff) return [['tasks','My tasks'],['cal','Command Center']].concat(kid?[['add','Add what I need'],['dinner','Dinner']]:[]);
+  if(kid||staff) return [['tasks','My tasks'],['cal','Command Center']].concat(kid?[['km','My money'],['add','Add what I need'],['dinner','Dinner']]:[]);
   const n=[['cal','Command Center'],['k:dashboard','Kitchen']];
+  if(S.members.some(m=>m.role==='kid'))n.push(['km',"Kids' money"]);
   if(seesMoney())n.push(['money','Money']);
   return n;
 }
@@ -216,6 +218,7 @@ function render(){
     });
   }
   else if(S.page==='money'&&seesMoney()) m.innerHTML='<iframe id="mframe" src="money.html?v='+Date.now()+'" title="Money"></iframe>';
+  else if(S.page==='km') m.innerHTML=kmView();
   else if(S.page==='cal'||S.page==='home') m.innerHTML=calView()+openList();
   else if(S.page==='tasks'||S.page==='home') m.innerHTML=tasksView(S.page==='home');
   else if(S.page==='add') m.innerHTML=addView();
@@ -269,6 +272,7 @@ function bind(){
     await loadTasks();render();
   });
   if(typeof calBind==='function')calBind();
+  if(typeof kmBind==='function')kmBind();
 }
 sb.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_IN'&&!S.user)load() });
 load();
