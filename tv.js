@@ -14,7 +14,7 @@
     '#tv .dt{font-size:clamp(16px,2.6vh,34px);color:#e8d9a8}' +
     '#tv .tm{font-family:"Cormorant Garamond",serif;font-size:clamp(34px,6.4vh,84px);font-weight:700;color:#C59B27;line-height:1}' +
     '#tv .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1.4vh 1vw}' +
-    '#tv .day{background:#1d2d52;border-radius:14px;padding:1.4vh 1vw;min-height:22vh}' +
+    '#tv .day{background:#1d2d52;border-radius:14px;padding:1.4vh 1vw;min-height:72vh}' +
     '#tv .day.today{background:#fff;color:#14213d;box-shadow:0 0 0 4px #C59B27}' +
     '#tv .dh{display:flex;justify-content:space-between;align-items:baseline;font-weight:800;font-size:clamp(17px,2.7vh,32px);margin-bottom:1vh;border-bottom:2px solid #C59B27;padding-bottom:.6vh}' +
     '#tv .dh span{font-size:.7em;font-weight:600;opacity:.75}' +
