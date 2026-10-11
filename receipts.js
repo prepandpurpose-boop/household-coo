@@ -33,6 +33,11 @@
     return m;
   }
 
+  function tiers() {
+    const seen = {}, out = [];
+    ((S.mdata && S.mdata.overhead) || []).forEach(o => { const t = o.tier || ''; if (!t || seen[t] || /tithe|shelter/i.test(t)) return; seen[t] = 1; out.push(t); });
+    return out;
+  }
   window.receiptsView = function () {
     if (!S.mdata) return '<div class="eyebrow">Money</div><h1>Receipts.</h1><div class="card"><p class="note">Loading.</p></div>';
     const sp = spentThisMonth(), cs = cats();
@@ -53,6 +58,11 @@
       '<p style="margin:8px 0">When you save: the amounts come off what is left in each category below, and the grocery items update your Kitchen prices and inventory.</p>' +
       '<div style="margin-top:12px"><button class="btn" id="rc_scan">Take or choose a receipt photo</button></div></div>' +
       '<div class="card" style="margin-top:18px"><h2>What is left this month</h2>' + (rows || '<p class="note">Nothing scanned yet.</p>') + other + '</div>' +
+      '<div class="card" style="margin-top:18px"><h2>Add a budget line</h2><p class="note">Need a place to budget something, like household items or gas? Add it here. It shows up in Money and in the receipt categories.</p>' +
+      '<label for="bl_name">What is it for</label><input id="bl_name" placeholder="Household items">' +
+      '<label for="bl_amt">Monthly amount</label><input id="bl_amt" type="number" min="0" step="0.01">' +
+      '<label for="bl_tier">Group</label><select id="bl_tier">' + tiers().map(x => '<option>' + esc(x) + '</option>').join('') + '</select>' +
+      '<div style="margin-top:12px"><button class="btn ghost" id="bl_add">Add budget line</button></div></div>' +
       '<div class="card" style="margin-top:18px"><h2>Receipts this month</h2>' + (recent || '<p class="note">None yet.</p>') + '</div>';
   };
 
@@ -144,6 +154,15 @@
   window.receiptsBind = function () {
     if (S.page !== 'receipts') return;
     const s = document.getElementById('rc_scan'); if (s) s.onclick = pick;
+    const bl = document.getElementById('bl_add');
+    if (bl) bl.onclick = async () => {
+      const name = document.getElementById('bl_name').value.trim(), amt = parseFloat(document.getElementById('bl_amt').value), tier = document.getElementById('bl_tier').value;
+      if (!name || !(amt > 0)) { alert('Type what it is for and a monthly amount.'); return; }
+      const sample = (S.mdata.overhead || []).find(o => o.tier === tier) || {};
+      S.mdata.overhead = S.mdata.overhead || [];
+      S.mdata.overhead.push({ due: 0, cost: amt, kind: sample.kind || 'wall', tier, action: 'Keep (Essential)', category: name });
+      await saveMoney(S.mdata); render();
+    };
     document.querySelectorAll('[data-rcrm]').forEach(b => b.onclick = async () => {
       if (!confirm('Remove this receipt from your spending?')) return;
       S.mdata.receipts = (S.mdata.receipts || []).filter(r => r.id !== b.dataset.rcrm);
