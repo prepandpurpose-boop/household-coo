@@ -92,7 +92,7 @@
       genPaydays(r, start, end).forEach(d => {
         const key = dISO(d), planned = +r.amount || 0;
         const actual = (r.actuals && r.actuals[key] != null) ? +r.actuals[key] : null;
-        cs.push({ date: d, key, name: r.source || 'Paycheck', planned, actual, amt: actual != null ? actual : planned });
+        cs.push({ date: d, key, name: r.source || 'Paycheck', planned, actual, amt: actual != null ? actual : planned, parts: [{ ri, key, name: r.source || 'Paycheck', planned, actual }] });
       });
     });
     cs.sort((a, b) => a.date - b.date);
@@ -101,7 +101,7 @@
     cs.forEach(c => {
       const last = out[out.length - 1];
       if (last && last.key === c.key) {
-        last.name += ' + ' + c.name; last.planned += c.planned; last.amt += c.amt;
+        last.name += ' + ' + c.name; last.parts = last.parts.concat(c.parts); last.planned += c.planned; last.amt += c.amt;
         last.actual = (last.actual != null && c.actual != null) ? last.amt : null;
       } else out.push(Object.assign({}, c));
     });
@@ -132,6 +132,24 @@
     return steps;
   }
 
+  function monthPicture(M) {
+    const steps = stepsFor({ planned: M, amt: M }, null, M);
+    const order = ['First', 'Your Four Walls', 'Other recurring expenses', 'Savings and goals'];
+    const FN = { weekly: 'every week', biweekly: 'every 2 weeks', monthly: 'every month' };
+    const inc = state.income.filter(r => (+r.amount || 0) > 0).map(r => '<div class="ppstep"><span class="t">' + E(r.source || 'Income') + ' <span class="n">' + money0(+r.amount) + ' ' + (FN[r.freq || 'monthly'] || '') + '</span></span><span class="a">' + money0(monthlyEquivalent(r)) + '</span></div>').join('');
+    let used = 0;
+    const rows = order.map(g => { const ss = steps.filter(x => x.g === g); if (!ss.length) return ''; const tot = ss.reduce((t, x) => t + Math.round(x.amt), 0); used += tot; return '<div class="ppstep"><span class="t">' + E(g === 'First' ? 'Tithe' : g) + ' <span class="n">' + ss.map(x => E(x.label) + ' ' + money0(x.amt)).join(', ') + '</span></span><span class="a">' + money0(tot) + '</span></div>'; }).join('');
+    const free = Math.round(M) - used;
+    return '<div class="card"><div class="card-title">All your money coming in, and what it covers (per month)</div>' +
+      '<div class="card-note">Every income line is added together here, not just one paycheck. Weekly pay is counted as 52 weeks divided by 12 months.</div>' +
+      '<div style="margin:10px 0 2px;font-weight:700;color:var(--green)">Money coming in</div>' + inc +
+      '<div class="ppfree"><span>Total coming in</span><span>' + money0(M) + '</span></div>' +
+      '<div style="margin:14px 0 2px;font-weight:700;color:var(--green)">What it covers, in order</div>' + rows +
+      '<div class="ppfree' + (free < 0 ? ' neg' : '') + '"><span>' + (free < 0 ? 'Short by this amount each month' : 'Left over for everyday spending each month') + '</span><span>' + money0(Math.abs(free)) + '</span></div></div>';
+  }
+  function actualBox(c) {
+    return '<div class="card-note" style="margin:8px 0">' + c.parts.map(p => '<div style="margin:4px 0">' + E(p.name) + ': planned ' + money0(p.planned) + '. I actually got $ <input type="number" min="0" step="0.01" data-act="' + p.ri + '|' + p.key + '" value="' + (p.actual != null ? p.actual : '') + '" placeholder="' + Math.round(p.planned) + '" style="width:110px"></div>').join('') + '<div>Leave it empty if it matches the plan. Type the real amount when your pay lands and this check recalculates.</div></div>';
+  }
   function renderPayPlan() {
     ensure();
     const M = calc().income;
@@ -163,15 +181,16 @@
       const title = i === 0 ? 'Your next paycheck' : 'Following paycheck';
       return '<div class="card"><div class="card-title">' + title + ': ' + fmtD(c.date) + ' <span class="badge">' + E(c.name) + '</span></div>' +
         '<div class="card-note">' + (c.actual != null ? 'Confirmed amount ' : 'Planned amount ') + '<strong>' + money0(c.amt) + '</strong>. This check covers ' + fmtD(c.date) + ' up to ' + fmtD(next) + '. Do these in order, and check each one off when it is done. Every check puts aside its own share of each monthly bill, so each bill is covered when its due date comes.</div>' +
-        (noWalls ? '<div class="priority-note">Your Four Walls are not on the Treasury tab yet (rent or mortgage, food, utilities, transportation, insurance, minimum debt payments). Until they are, the amount to spend below is too high. Add them on Treasury, or read your statements on Import.</div>' : '') +
+        actualBox(c) + (noWalls ? '<div class="priority-note">Your Four Walls are not on the Treasury tab yet (rent or mortgage, food, utilities, transportation, insurance, minimum debt payments). Until they are, the amount to spend below is too high. Add them on Treasury, or read your statements on Import.</div>' : '') +
         rows +
         '<div class="ppfree' + (free < 0 ? ' neg' : '') + '"><span>' + (free < 0 ? 'Short by this amount' : 'Left for everyday spending until ' + fmtD(next)) + '</span><span>' + money0(Math.abs(free)) + '</span></div>' +
         (free >= 0 ? '<div class="card-note">That is about ' + money0(weekly) + ' a week for everyday spending that is not listed above, like eating out, gas, and fun.</div>' : '<div class="card-note">This check does not cover everything on this list. Pick the items lowest on the list to trim or move, or change a due date on Treasury. Nothing is wrong with you or your plan. It is just math, and you can change it.</div>') +
         '</div>';
     }).join('');
     ppSec.innerHTML = '<div class="section-head"><h2>Pay Plan</h2><div class="sub">What to do with each paycheck, in order. It is built from your Treasury bills, sinking funds, savings goals, Emergency Fund, and extra debt payment. Add or change any of them and this page updates.</div></div>' +
-      titheCard + cards;
+      titheCard + monthPicture(M) + cards;
     bindTithe();
+    ppSec.querySelectorAll('input[data-act]').forEach(el => el.onchange = () => { const a = el.dataset.act.split('|'), r = state.income[+a[0]]; if (!r) return; if (!r.actuals) r.actuals = {}; if (el.value === '') delete r.actuals[a[1]]; else r.actuals[a[1]] = parseFloat(el.value) || 0; save(); renderPayPlan(); });
     ppSec.querySelectorAll('input[type=checkbox][data-k]').forEach(cb => cb.onchange = () => { if (cb.checked) state.ppDone[cb.dataset.k] = true; else delete state.ppDone[cb.dataset.k]; save(false); renderPayPlan(); });
   }
 
