@@ -61,6 +61,7 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
+<script src="calendar.js?v=2"></script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -117,6 +118,7 @@ async function load(){
   await loadTasks();
   await loadKitchen();
   await loadMoney();
+  try{await loadCal()}catch(e){console.warn(e)}
   if(!S.me.display_name){const n=prompt('What name should the household see for you?');if(n){await sb.rpc('set_my_name',{n});S.me.display_name=n;const i=S.members.findIndex(x=>x.user_id===S.user.id);if(i>=0)S.members[i].display_name=n}}
   S.page=S.me.role==='kid'?'tasks':'home';
   shell();
@@ -184,8 +186,8 @@ async function loadTasks(){
 // ---------- shell ----------
 function navItems(){
   const kid=S.me.role==='kid', staff=['helper','staff'].includes(S.me.role);
-  if(kid||staff) return [['tasks','My tasks']].concat(kid?[['add','Add what I need'],['dinner','Dinner']]:[]);
-  const n=[['home','Home'],['k:dashboard','Kitchen']];
+  if(kid||staff) return [['tasks','My tasks'],['cal','Command Center']].concat(kid?[['add','Add what I need'],['dinner','Dinner']]:[]);
+  const n=[['home','Home'],['cal','Command Center'],['k:dashboard','Kitchen']];
   if(seesMoney())n.push(['money','Money']);
   n.push(['tasks','Tasks']);
   return n;
@@ -215,6 +217,7 @@ function render(){
     });
   }
   else if(S.page==='money'&&seesMoney()) m.innerHTML='<iframe id="mframe" src="money.html?v='+Date.now()+'" title="Money"></iframe>';
+  else if(S.page==='cal') m.innerHTML=calView();
   else if(S.page==='tasks'||S.page==='home') m.innerHTML=tasksView(S.page==='home');
   else if(S.page==='add') m.innerHTML=addView();
   else m.innerHTML=soon(S.page);
@@ -230,16 +233,19 @@ function who(id){ if(!id)return 'Anyone'; return id===S.user.id?'You':nm(id) }
 function tasksView(home){
   const mine=S.me.role==='kid'||['helper','staff'].includes(S.me.role);
   const list=S.tasks; const open=list.filter(t=>t.status!=='done'), done=list.filter(t=>t.status==='done');
-  const add=`<div class="card" style="margin-bottom:18px"><h2>Add a task</h2>
-   <label for="tt">What needs doing</label><input id="tt">
+  const add=`<div class="card" style="margin-bottom:18px"><h2>Add a task or appointment</h2>
+   <label for="tt">What needs doing, or what is the appointment</label><input id="tt">
    ${mine?'':`<label for="th">Handoff note (so whoever does it knows exactly how)</label><textarea id="th"></textarea>
+   <label for="tk">Is this a task or an appointment?</label><select id="tk"><option value="task">Task</option><option value="appointment">Appointment</option></select>
+   <label for="td">Date (optional)</label><input id="td" type="date">
+   <label for="tt2">Time (for an appointment)</label><input id="tt2" type="time">
    <label for="ta">Who has it</label><select id="ta"><option value="">Anyone</option>${S.members.map(x=>`<option value="${x.user_id}">${x.user_id===S.user.id?'Me':esc(nm(x.user_id))+' ('+esc(x.role)+')'}</option>`).join('')}</select>`}
-   <div style="margin-top:14px"><button class="btn" id="addt">Add task</button></div></div>`;
+   <div style="margin-top:14px"><button class="btn" id="addt">Add</button></div></div>`;
   const row=t=>`<div class="row"><button class="chk ${t.status==='done'?'done':''}" data-t="${t.id}" aria-label="Mark done">${t.status==='done'?'&#10003;':''}</button>
-   <div style="flex:1"><div class="${t.status==='done'?'done-t':''}" style="font-weight:600">${esc(t.title)}<span class="chip">${who(t.assigned_to)}</span></div>
+   <div style="flex:1"><div class="${t.status==='done'?'done-t':''}" style="font-weight:600">${esc(t.title)}<span class="chip">${who(t.assigned_to)}</span>${t.kind==='appointment'?'<span class="chip" style="background:#F6EBC4">Appointment</span>':''}${t.due_date?`<span class="chip">${t.kind==='appointment'?'':'Due '}${esc(t.due_date)}${t.due_time?' '+esc(t.due_time):''}</span>`:''}</div>
    ${t.handoff_notes?`<div class="note">Note: ${esc(t.handoff_notes)}</div>`:''}</div></div>`;
   return `<div class="eyebrow">${esc(S.hh.name)}</div><h1>${home?'Home.':(mine?'My tasks.':'Tasks.')}</h1><div class="rule"></div>
-  ${add}<div class="card"><h2>Open · ${open.length}</h2>${open.map(row).join('')||'<p class="note">Nothing open.</p>'}
+  ${home&&typeof calToday==='function'?calToday():''}${add}<div class="card"><h2>Open · ${open.length}</h2>${open.map(row).join('')||'<p class="note">Nothing open.</p>'}
   ${done.length?`<h2 style="margin-top:18px">Done · ${done.length}</h2>${done.map(row).join('')}`:''}</div>`;
 }
 function addView(){
@@ -252,7 +258,7 @@ function bind(){
     const title=$('#tt').value.trim(); if(!title)return;
     const kid=S.me.role==='kid';
     const row={household_id:S.me.household_id,title,handoff_notes:$('#th')?.value.trim()||null,
-      assigned_to:kid?S.user.id:($('#ta')?.value||null)};
+      assigned_to:kid?S.user.id:($('#ta')?.value||null),due_date:$('#td')?.value||null,kind:$('#tk')?.value||'task',due_time:$('#tt2')?.value||null};
     const {error}=await sb.from('tasks').insert(row);
     if(error){alert(error.message);return}
     await loadTasks();render();
@@ -262,6 +268,7 @@ function bind(){
     await sb.from('tasks').update({status:t.status==='done'?'open':'done'}).eq('id',t.id);
     await loadTasks();render();
   });
+  if(typeof calBind==='function')calBind();
 }
 sb.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_IN'&&!S.user)load() });
 load();
