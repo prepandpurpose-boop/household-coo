@@ -1015,11 +1015,34 @@ function saveItem(){
 
 // ─── HOST BRIDGE (Household COO shell provides sign-in, household and storage) ───
 window.__kSave=function(d){try{parent.postMessage({type:'kitchen-save',data:d},location.origin);}catch(e){console.warn(e);}};
+function rcProcessQueue(){
+  let q=[];try{q=(window.__KRAW&&JSON.parse(window.__KRAW).rcQueue)||[];}catch(e){}
+  if(!q.length)return;
+  A.prices=A.prices||{};A.receipts=A.receipts||[];
+  q.forEach((r,n)=>{
+    const date=r.date||dateKey(new Date());
+    (r.items||[]).forEach(it0=>{
+      const it={...it0,match:rcMatch(it0.name)};
+      const key=rcWords(it.name).join(' ');if(!key)return;
+      const up=rcUnitPrice(it),qq=+it.qty||1;
+      (A.prices[key]=A.prices[key]||[]).push({d:date,store:r.store||'',price:Math.round((+it.price/qq)*100)/100,size:rcSize(it.sizeValue,it.sizeUnit),per:up?Math.round(up.p*10000)/10000:null,perLabel:up?up.l:''});
+      if(A.prices[key].length>20)A.prices[key]=A.prices[key].slice(-20);
+      if(it.match)rcAdd(it.match,it);
+      const iw=rcWords(it.name);
+      const g=(A.grocery||[]).find(x=>{if(x.done)return false;const xw=rcWords(x.name);const hit=xw.filter(w=>iw.includes(w)).length;return xw.length&&hit/xw.length>=0.6;});
+      if(g)g.done=true;
+    });
+    A.receipts.push({id:Date.now()+n,date,store:r.store||'',count:(r.items||[]).length});
+  });
+  A.receipts=A.receipts.slice(-50);
+  save();
+}
 async function kitchenStart(msg){
   window.__KRAW=msg.data?JSON.stringify(msg.data):null;
   A.email=msg.email||'';
   A._seesMoney=!!msg.money;A._spend=msg.spend||null;
   await loadUserData(A.email);
+  try{rcProcessQueue();}catch(e){console.warn(e);}
   document.getElementById('app').style.display='flex';
   const se=document.getElementById('sidebar-email');if(se)se.textContent=A.email;
   recalcCookListFromCalendar();
@@ -3547,7 +3570,6 @@ function rGrocery(){
     <div><div class="page-title" style="font-size:18px">Shopping List</div><div style="font-size:13px;color:var(--text-muted)">${out.length+low.length} items needed</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-outline btn-sm" onclick="snapItem()">📷 Photo of what we're out of</button>
-      <button class="btn btn-outline btn-sm" onclick="snapReceipt()">🧾 Scan receipt</button>
       <button class="btn btn-outline btn-sm" onclick="printGroc()">🖨️ Print</button>
       <button class="btn btn-primary btn-sm" onclick="openAddGroc()">+ Add Item</button>
     </div>
