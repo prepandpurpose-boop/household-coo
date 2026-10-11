@@ -258,4 +258,8 @@
       S.cal.items = S.cal.items.filter(x => x.id !== b.dataset.rm); await saveCal(); render();
     });
   };
+  window.cooDay = function (ds) {
+    const items = itemsOn(ds, false).filter(x => x.tid ? !!((S.tasks || []).find(t => t.id === x.tid) || {}).shared : !x.who);
+    return { items, meals: mealsOn(ds) };
+  };
 })();
