@@ -1,1 +1,1 @@
-{"functions":{"api/generate.js":{"maxDuration":60},"api/statement.js":{"maxDuration":60}}}
+{ "functions": { "api/generate.js": { "maxDuration": 60 }, "api/receipt.js": { "maxDuration": 60 } } }
