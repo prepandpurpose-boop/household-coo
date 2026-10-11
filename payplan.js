@@ -108,34 +108,27 @@
     return out;
   }
 
+  const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'));
   function stepsFor(c, next, M) {
+    // Every check puts aside its own share of every monthly bill, so a bill is covered whenever its due date arrives.
     const share = M > 0 ? (c.planned || c.amt) / M : 0;
     const steps = [];
     const pct = +state.tithePct || 0;
-    if (pct > 0) steps.push({ id: 'tithe', label: 'Tithe (' + pct + '% of this check)', amt: c.amt * pct / 100, note: 'Set this aside first.' });
-    // Bills with a due date that falls between this check and the next
-    const y0 = c.date.getFullYear(), m0 = c.date.getMonth();
-    const spread = [];
-    state.overhead.forEach(o => {
-      if (o.action === 'Prune (Cancel)' || o.tier === '10% Tithe') return;
-      const cost = +o.cost || 0; if (cost <= 0) return;
-      if (+o.due >= 1) {
-        for (let k = 0; k < 3; k++) {
-          const y = new Date(y0, m0 + k, 1);
-          const dd = new Date(y.getFullYear(), y.getMonth(), Math.min(+o.due, daysInMonth(y.getFullYear(), y.getMonth())));
-          if (dd >= c.date && dd < next) steps.push({ id: 'b:' + o.category, label: o.category, amt: cost, note: 'Due ' + (dd.getMonth() + 1) + '/' + dd.getDate(), sort: dd });
-        }
-      } else spread.push({ id: 's:' + o.category, label: o.category, amt: cost * share, note: 'No set date. This check’s share of the month.' });
-    });
-    steps.sort((a, b) => (a.sort || 0) - (b.sort || 0));
-    spread.forEach(s => steps.push(s));
-    // Goals and funds: each check carries its share of the month
+    if (pct > 0) steps.push({ g: 'First', id: 'tithe', label: 'Tithe (' + pct + '% of this check)', amt: c.amt * pct / 100, note: 'Set this aside first.' });
+    const live = state.overhead.filter(o => o.action !== 'Prune (Cancel)' && o.tier !== '10% Tithe' && (+o.cost || 0) > 0);
+    const wallRank = o => { const i = CATS.wall.indexOf(o.tier); return i < 0 ? 99 : i; };
+    const walls = live.filter(o => o.kind !== 'expense').sort((x, y) => wallRank(x) - wallRank(y));
+    const exps = live.filter(o => o.kind === 'expense');
+    const line = (g, o) => ({ g, id: 'b:' + o.category, label: o.category, amt: (+o.cost || 0) * share, note: (+o.due >= 1 ? 'Due on the ' + ord(+o.due) : 'No set date') + '. Month total ' + money0(+o.cost || 0) + '.' });
+    walls.forEach(o => steps.push(line('Your Four Walls', o)));
+    exps.forEach(o => steps.push(line('Other recurring expenses', o)));
+    const G = 'Savings and goals';
     const p = emergencyPlan();
-    if (!p.full && p.efMonthly > 0) steps.push({ id: 'ef', label: 'Emergency Fund', amt: p.efMonthly * share, note: 'Move to savings.' });
+    if (!p.full && p.efMonthly > 0) steps.push({ g: G, id: 'ef', label: 'Emergency Fund', amt: p.efMonthly * share, note: 'Move to savings.' });
     const extra = +state.debtExtra || 0;
-    if (extra > 0) steps.push({ id: 'debt', label: 'Extra debt payment', amt: extra * share, note: 'On top of minimums.' });
-    (state.goals.sinking || []).forEach(g => { const mo = monthsUntil(g.due); const need = mo ? Math.max(0, (+g.target || 0) - (+g.saved || 0)) / mo : 0; if (need > 0) steps.push({ id: 'sk:' + g.name, label: (g.name || 'Sinking fund') + ' (sinking fund)', amt: need * share, note: 'Move to this fund.' }); });
-    (state.goals.savings || []).forEach(g => { if (!g.date) return; const mo = monthsUntil(g.date); const need = mo ? Math.max(0, (+g.target || 0) - (+g.saved || 0)) / mo : 0; if (need > 0) steps.push({ id: 'sv:' + g.name, label: (g.name || 'Savings goal') + ' (savings goal)', amt: need * share, note: 'Move to this goal.' }); });
+    if (extra > 0) steps.push({ g: G, id: 'debt', label: 'Extra debt payment', amt: extra * share, note: 'On top of minimums.' });
+    (state.goals.sinking || []).forEach(g => { const mo = monthsUntil(g.due); const need = mo ? Math.max(0, (+g.target || 0) - (+g.saved || 0)) / mo : 0; if (need > 0) steps.push({ g: G, id: 'sk:' + g.name, label: (g.name || 'Sinking fund') + ' (sinking fund)', amt: need * share, note: 'Move to this fund.' }); });
+    (state.goals.savings || []).forEach(g => { if (!g.date) return; const mo = monthsUntil(g.date); const need = mo ? Math.max(0, (+g.target || 0) - (+g.saved || 0)) / mo : 0; if (need > 0) steps.push({ g: G, id: 'sv:' + g.name, label: (g.name || 'Savings goal') + ' (savings goal)', amt: need * share, note: 'Move to this goal.' }); });
     return steps;
   }
 
@@ -158,16 +151,22 @@
       const free = Math.round(c.amt) - used;
       const days = Math.max(1, Math.round((next - c.date) / 86400000));
       const weekly = free / (days / 7);
+      const GNOTE = { 'Your Four Walls': 'Shelter, food, utilities, transportation, insurance, and minimum debt payments. Move this money into the account you pay bills from.', 'Other recurring expenses': 'Phone, internet, subscriptions, and other monthly bills. Same account.' };
+      let lastG = '';
       const rows = steps.map((s, n) => {
         const k = c.key + '|' + s.id, done = !!state.ppDone[k];
-        return '<div class="ppstep' + (done ? ' done' : '') + '"><label><input type="checkbox" data-k="' + E(k) + '" ' + (done ? 'checked' : '') + '><span class="t">' + (n + 1) + '. ' + E(s.label) + ' <span class="n">' + E(s.note || '') + '</span></span></label><span class="a">' + money0(s.amt) + '</span></div>';
+        const head = s.g !== lastG ? '<div style="margin:14px 0 2px;font-weight:700;color:var(--green)">' + E(s.g === 'First' ? 'First' : s.g) + '</div>' + (GNOTE[s.g] ? '<div class="card-note" style="margin:0 0 4px">' + E(GNOTE[s.g]) + '</div>' : '') : '';
+        lastG = s.g;
+        return head + '<div class="ppstep' + (done ? ' done' : '') + '"><label><input type="checkbox" data-k="' + E(k) + '" ' + (done ? 'checked' : '') + '><span class="t">' + (n + 1) + '. ' + E(s.label) + ' <span class="n">' + E(s.note || '') + '</span></span></label><span class="a">' + money0(s.amt) + '</span></div>';
       }).join('');
+      const noWalls = !state.overhead.some(o => o.kind !== 'expense' && o.tier !== '10% Tithe' && (+o.cost || 0) > 0);
       const title = i === 0 ? 'Your next paycheck' : 'Following paycheck';
       return '<div class="card"><div class="card-title">' + title + ': ' + fmtD(c.date) + ' <span class="badge">' + E(c.name) + '</span></div>' +
-        '<div class="card-note">' + (c.actual != null ? 'Confirmed amount ' : 'Planned amount ') + '<strong>' + money0(c.amt) + '</strong>. This check covers ' + fmtD(c.date) + ' up to ' + fmtD(next) + '. Do these in order, and check each one off when it is done.</div>' +
+        '<div class="card-note">' + (c.actual != null ? 'Confirmed amount ' : 'Planned amount ') + '<strong>' + money0(c.amt) + '</strong>. This check covers ' + fmtD(c.date) + ' up to ' + fmtD(next) + '. Do these in order, and check each one off when it is done. Every check puts aside its own share of each monthly bill, so each bill is covered when its due date comes.</div>' +
+        (noWalls ? '<div class="priority-note">Your Four Walls are not on the Treasury tab yet (rent or mortgage, food, utilities, transportation, insurance, minimum debt payments). Until they are, the amount to spend below is too high. Add them on Treasury, or read your statements on Import.</div>' : '') +
         rows +
-        '<div class="ppfree' + (free < 0 ? ' neg' : '') + '"><span>' + (free < 0 ? 'Short by this amount' : 'Yours to spend until ' + fmtD(next)) + '</span><span>' + money0(Math.abs(free)) + '</span></div>' +
-        (free >= 0 ? '<div class="card-note">That is about ' + money0(weekly) + ' a week for food, gas, and everyday things not listed above.</div>' : '<div class="card-note">This check does not cover everything on this list. Pick the items lowest on the list to trim or move, or change a due date on Treasury. Nothing is wrong with you or your plan. It is just math, and you can change it.</div>') +
+        '<div class="ppfree' + (free < 0 ? ' neg' : '') + '"><span>' + (free < 0 ? 'Short by this amount' : 'Left for everyday spending until ' + fmtD(next)) + '</span><span>' + money0(Math.abs(free)) + '</span></div>' +
+        (free >= 0 ? '<div class="card-note">That is about ' + money0(weekly) + ' a week for everyday spending that is not listed above, like eating out, gas, and fun.</div>' : '<div class="card-note">This check does not cover everything on this list. Pick the items lowest on the list to trim or move, or change a due date on Treasury. Nothing is wrong with you or your plan. It is just math, and you can change it.</div>') +
         '</div>';
     }).join('');
     ppSec.innerHTML = '<div class="section-head"><h2>Pay Plan</h2><div class="sub">What to do with each paycheck, in order. It is built from your Treasury bills, sinking funds, savings goals, Emergency Fund, and extra debt payment. Add or change any of them and this page updates.</div></div>' +
