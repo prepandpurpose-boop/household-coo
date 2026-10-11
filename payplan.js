@@ -162,16 +162,22 @@
     const steps = stepsFor({ planned: M, amt: M, monthly: true }, null, M);
     const order = ['First', 'Your Four Walls', 'Other recurring expenses', 'Savings and goals'];
     const FN = { weekly: 'every week', biweekly: 'every 2 weeks', monthly: 'every month' };
-    const inc = state.income.filter(r => (+r.amount || 0) > 0).map(r => '<div class="ppstep"><span class="t">' + E(r.source || 'Income') + ' <span class="n">' + money0(+r.amount) + ' ' + (FN[r.freq || 'monthly'] || '') + '</span></span><span class="a">' + money0(monthlyEquivalent(r)) + '</span></div>').join('');
+    const two = x => '<span class="a">' + money0(x * 12 / 52) + ' a week<br><span class="n">' + money0(x) + ' a month</span></span>';
+    const inc = state.income.filter(r => (+r.amount || 0) > 0).map(r => '<div class="ppstep"><span class="t">' + E(r.source || 'Income') + ' <span class="n">' + money0(+r.amount) + ' ' + (FN[r.freq || 'monthly'] || '') + '</span></span>' + two(monthlyEquivalent(r)) + '</div>').join('');
     let used = 0;
-    const rows = order.map(g => { const ss = steps.filter(x => x.g === g); if (!ss.length) return ''; const tot = ss.reduce((t, x) => t + Math.round(x.amt), 0); used += tot; return '<div class="ppstep"><span class="t">' + E(g === 'First' ? 'Tithe' : g) + ' <span class="n">' + ss.map(x => E(x.label) + ' ' + money0(x.amt)).join(', ') + '</span></span><span class="a">' + money0(tot) + '</span></div>'; }).join('');
+    const rows = order.map(g => {
+      const ss = steps.filter(x => x.g === g); if (!ss.length) return '';
+      const tot = ss.reduce((t, x) => t + Math.round(x.amt), 0); used += tot;
+      const head = '<div style="margin:14px 0 2px;font-weight:700;color:var(--green)">' + E(g === 'First' ? 'First: Tithe' : g) + '</div>';
+      return head + ss.map(x => '<div class="ppstep"><span class="t">' + E(x.label) + ' <span class="n">' + E(x.note || '') + '</span></span>' + two(x.amt) + '</div>').join('');
+    }).join('');
     const free = Math.round(M) - used;
-    return '<div class="card"><div class="card-title">All your money coming in, and what it covers (per month)</div>' +
-      '<div class="card-note">Every income line is added together here, not just one paycheck. Weekly pay is counted as 52 weeks divided by 12 months.</div>' +
+    return '<div class="card"><div class="card-title">All your money coming in, and what it covers</div>' +
+      '<div class="card-note">All your expected pay is added together here. Weekly pay is counted as 52 weeks divided by 12 months. Do the steps in order. Anything that does not fit is cut from the bottom of the list first.</div>' +
       '<div style="margin:10px 0 2px;font-weight:700;color:var(--green)">Money coming in</div>' + inc +
-      '<div class="ppfree"><span>Total coming in</span><span>' + money0(M) + '</span></div>' +
-      '<div style="margin:14px 0 2px;font-weight:700;color:var(--green)">What it covers, in order</div>' + rows +
-      '<div class="ppfree' + (free < 0 ? ' neg' : '') + '"><span>' + (free < 0 ? 'Short by this amount each month' : 'Left over for everyday spending each month') + '</span><span>' + money0(Math.abs(free)) + '</span></div></div>';
+      '<div class="ppfree"><span>Total coming in</span><span>' + money0(M * 12 / 52) + ' a week · ' + money0(M) + ' a month</span></div>' +
+      rows +
+      '<div class="ppfree' + (free < 0 ? ' neg' : '') + '"><span>' + (free < 0 ? 'Short by this amount' : 'Left over for everyday spending') + '</span><span>' + money0(Math.abs(free) * 12 / 52) + ' a week · ' + money0(Math.abs(free)) + ' a month</span></div></div>';
   }
   function actualBox(c) {
     return '<div class="card-note" style="margin:8px 0">' + c.parts.map(p => '<div style="margin:4px 0">' + E(p.name) + ': planned ' + money0(p.planned) + '. I actually got $ <input type="number" min="0" step="0.01" data-act="' + p.ri + '|' + p.key + '" value="' + (p.actual != null ? p.actual : '') + '" placeholder="' + Math.round(p.planned) + '" style="width:110px"></div>').join('') + '<div>Leave it empty if it matches the plan. Type the real amount when your pay lands and this check recalculates.</div></div>';
@@ -214,7 +220,7 @@
         '</div>';
     }).join('');
     ppSec.innerHTML = '<div class="section-head"><h2>Pay Plan</h2><div class="sub">What to do with each paycheck, in order. It is built from your Treasury bills, sinking funds, savings goals, Emergency Fund, and extra debt payment. Add or change any of them and this page updates.</div></div>' +
-      titheCard + monthPicture(M) + cards;
+      titheCard + monthPicture(M);
     bindTithe();
     ppSec.querySelectorAll('input[data-act]').forEach(el => el.onchange = () => { const a = el.dataset.act.split('|'), r = state.income[+a[0]]; if (!r) return; if (!r.actuals) r.actuals = {}; if (el.value === '') delete r.actuals[a[1]]; else r.actuals[a[1]] = parseFloat(el.value) || 0; save(); renderPayPlan(); });
     ppSec.querySelectorAll('input[type=checkbox][data-k]').forEach(cb => cb.onchange = () => { if (cb.checked) state.ppDone[cb.dataset.k] = true; else delete state.ppDone[cb.dataset.k]; save(false); renderPayPlan(); });
