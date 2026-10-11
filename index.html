@@ -209,7 +209,7 @@ function render(){
   const m=$('#main');
   m.classList.toggle('k',S.page.startsWith('k:')||(S.page==='money'&&seesMoney()));
   if(S.page.startsWith('k:')){
-    const tabs=[['dashboard','Overview'],['inventory','Inventory'],['pantry','Staples'],['builder','Meal Builder'],['favorites','Favorites'],['calendar','Meal calendar'],['grocery','Grocery list']];
+    const tabs=[['guide','How To'],['dashboard','Overview'],['inventory','Inventory'],['pantry','Staples'],['builder','Meal Builder'],['favorites','Favorites'],['calendar','Meal calendar'],['grocery','Grocery list']];
     m.innerHTML='<div id="ksub">'+tabs.map(([k,l])=>`<a data-k="${k}" class="${S.page==='k:'+k?'on':''}">${l}</a>`).join('')+'</div><iframe id="kframe" src="kitchen.html?v='+Date.now()+'" title="Kitchen"></iframe>';
     document.querySelectorAll('#ksub a').forEach(a=>a.onclick=()=>{
       const f=document.getElementById('kframe'); S.page='k:'+a.dataset.k;
