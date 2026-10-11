@@ -873,8 +873,9 @@ const rcMoney=n=>'$'+(+n||0).toFixed(2);
 function rcSize(v,u){return v>0&&u?(+v+' '+u):'';}
 function rcWords(s){return String(s||'').toLowerCase().replace(/[^a-z ]/g,' ').split(/\s+/).filter(w=>w.length>2).map(w=>w.replace(/s$/,''));}
 function pickPhoto(cb){
-  const i=document.createElement('input');i.type='file';i.accept='image/*';i.setAttribute('capture','environment');
-  i.onchange=()=>{if(i.files&&i.files[0])cb(i.files[0]);};
+  const i=document.createElement('input');i.type='file';i.accept='image/*';i.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(i);window._pickInput=i;
+  i.addEventListener('change',()=>{const f=i.files&&i.files[0];setTimeout(()=>{try{i.remove();}catch(e){}},60000);if(f)cb(f);});
   i.click();
 }
 function shrinkPhoto(file){return new Promise((res,rej)=>{
@@ -993,19 +994,23 @@ function rcRunItem(){pickPhoto(async f=>{
 });}
 function showItem(r){
   openModal('<div class="modal-header"><div class="modal-title">📷 Add to grocery list</div><button class="modal-close" onclick="closeModal()">×</button></div>'+
+    '<div style="font-size:13px;color:var(--text-muted);margin-bottom:10px">Here is what I read from your photo. Check it, then tap Add to list.</div>'+
     (r.confident===false?'<div class="alert alert-gold" style="margin-bottom:10px"><span>⚠️</span><div>I am not sure about this one. Please check the name and size.</div></div>':'')+
     '<div class="fg"><label class="lbl">What is it</label><input class="inp" id="si-name" value="'+rcEsc(r.name)+'"></div>'+
     '<div class="fg"><label class="lbl">Size</label><input class="inp" id="si-size" value="'+rcEsc(rcSize(r.sizeValue,r.sizeUnit))+'" placeholder="e.g. 16 oz, 1 gal"></div>'+
+    '<div class="fg"><label class="lbl">How many do you need</label><input class="inp" id="si-count" type="number" min="1" step="1" value="1"></div>'+
     '<div class="fg"><label class="lbl">How much is left</label><select class="sel" id="si-urg"><option value="out">Out</option><option value="low">Almost out</option></select></div>'+
     '<button class="btn btn-primary btn-full btn-lg" style="margin-top:8px" onclick="saveItem()">Add to list</button>');
 }
 function saveItem(){
-  const name=document.getElementById('si-name')?.value.trim();if(!name)return;
+  const name=document.getElementById('si-name')?.value.trim();if(!name){rcToast('Type what it is first.');return;}
   const size=document.getElementById('si-size')?.value.trim()||'';
+  const cnt=Math.max(1,Math.round(+document.getElementById('si-count')?.value||1));
   const urg=document.getElementById('si-urg')?.value||'out';
   const sun=new Date();sun.setDate(sun.getDate()-sun.getDay());
-  A.grocery.push({id:Date.now(),name,qty:size,urgency:urg,done:false,manualAdd:true,scheduledDate:dateKey(sun),reason:'Added by photo'});
-  save();closeModal();render();
+  const qty=(cnt>1?cnt+' × ':'')+size;
+  A.grocery.push({id:Date.now(),name,qty:qty,urgency:urg,done:false,manualAdd:true,scheduledDate:dateKey(sun),reason:'Added by photo'});
+  save();closeModal();render();rcToast('Added to your grocery list: '+name+(qty?' ('+qty+')':''));
 }
 
 // ─── HOST BRIDGE (Household COO shell provides sign-in, household and storage) ───
