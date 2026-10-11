@@ -1,0 +1,20 @@
+:root{
+  /* Household COO colors. Change a value here and the whole app changes. */
+  --navy:#14213d;       /* headings and text accents */
+  --blue:#14213d;       /* buttons, checkmarks, main brand color */
+  --blue-d:#14213d;
+  --blue-m:#4a76b8;
+  --side-top:#1f3560;   /* sidebar gradient, top */
+  --side-bot:#14213d;   /* sidebar gradient, bottom */
+  --light:#DCE6F1;
+  --line:#b9cbe4;
+  --bg:#FFFFFF;
+  --bg2:#FFFFFF;        /* page background */
+  --track:#e1e8f3;
+  --gold:#C59B27;
+  --gold-l:#F0D58C;
+  --gold-d:#6d5410;
+  --ink:#1c2433;
+  --mute:#46506a;
+  --red:#8f3a2f;
+}
