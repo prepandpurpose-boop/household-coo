@@ -109,6 +109,23 @@
     return out;
   }
 
+  function goalMonthly(list, g) {
+    if (+g.weekly > 0) return +g.weekly * 52 / 12;
+    const date = list === 'sinking' ? g.due : g.date;
+    if (!date) return 0;
+    const mo = monthsUntil(date);
+    return mo ? Math.max(0, (+g.target || 0) - (+g.saved || 0)) / mo : 0;
+  }
+  function credit(id, d) {
+    if (!d) return;
+    let g = null;
+    if (id.indexOf('sk:') === 0) g = (state.goals.sinking || []).find(x => x.name === id.slice(3));
+    else if (id.indexOf('sv:') === 0) g = (state.goals.savings || []).find(x => x.name === id.slice(3));
+    else if (id === 'ef') g = state.goals.emergency;
+    if (!g) return;
+    g.saved = Math.max(0, (+g.saved || 0) + d);
+    try { renderSavings(); renderSinking(); renderEmergency(); renderDashboard(); } catch (e) { console.warn(e); }
+  }
   function wallAvg(cat) {
     const ms = (state.spend && state.spend.merchants) || {}, all = new Set(); let tot = 0;
     Object.keys(ms).forEach(k => Object.keys(ms[k].months || {}).forEach(mk => { all.add(mk.split('|')[0]); if (ms[k].cat === cat) tot += -ms[k].months[mk]; }));
@@ -136,21 +153,24 @@
     [['Shelter (Wall 1)', 'Shelter: rent or mortgage'], ['Food (Wall 2)', 'Food: groceries'], ['Utilities (Wall 3)', 'Utilities'], ['Transportation (Wall 4)', 'Transportation: car, gas']].forEach(w => {
       if (walls.some(o => o.tier === w[0])) return;
       const est = wallAvg(w[0]);
-      steps.push({ g: 'Your Four Walls', id: 'w:' + w[0], label: w[1], amt: est * share, note: est > 0 ? 'Filled in from your statements: about ' + money0(est) + ' a month. Add it on Treasury to make it official.' : 'Not entered yet. Add it on Treasury, or read your statements on Import, and it fills in here.' });
+      steps.push({ g: 'Your Four Walls', id: 'w:' + w[0], label: w[1], amt: est * share, note: est > 0 ? 'Filled in from your statements: about ' + money0(est) + ' a month. Add it on Treasury to make it official.' : 'Not entered yet. Add it on Treasury.' });
     });
     if (+c.catchup > 0.5) steps.push({ g: 'Catch up', id: 'catch', label: 'Catch up on missed pay', amt: +c.catchup, note: 'Earlier pay came in short, so these bills were not set aside. Pay this right after your Four Walls.' });
     exps.forEach(o => steps.push(line('Other recurring expenses', o)));
     const keep = steps.length;
     const G = 'Savings and goals';
     const p = emergencyPlan();
-    if (!p.full && p.efMonthly > 0) steps.push({ g: G, id: 'ef', label: 'Emergency Fund', amt: p.efMonthly * share, note: 'Move to savings.' });
+    const gs = c.M0 > 0 ? c.planned / c.M0 : share;
+    if (!p.full && p.efMonthly > 0) steps.push({ g: G, id: 'ef', label: 'Emergency Fund', amt: p.efMonthly * gs, note: 'Move to savings.' });
     const sv = +state.savePerCheck || 0;
-    if (sv > 0) steps.push({ g: G, id: 'save', label: 'Savings', amt: c.monthly ? sv * checksPerMonth() : sv, note: 'Move to savings, on top of the Emergency Fund. Even a small amount counts.' });
+    if (sv > 0) steps.push({ g: G, id: 'save', label: 'Savings', amt: c.monthly ? sv * checksPerMonth() : sv, note: 'Move to savings.' });
     const extra = +state.debtExtra || 0;
-    if (extra > 0) steps.push({ g: G, id: 'debt', label: 'Extra debt payment', amt: extra * share, note: 'On top of minimums.' });
-    (state.goals.savings || []).forEach(g => { if (!g.date) return; const mo = monthsUntil(g.date); const need = mo ? Math.max(0, (+g.target || 0) - (+g.saved || 0)) / mo : 0; if (need > 0) steps.push({ g: G, id: 'sv:' + g.name, label: (g.name || 'Savings goal') + ' (savings goal)', amt: need * share, note: 'Move to this goal.' }); });
-    (state.goals.sinking || []).forEach(g => { const mo = monthsUntil(g.due); const need = mo ? Math.max(0, (+g.target || 0) - (+g.saved || 0)) / mo : 0; if (need > 0) steps.push({ g: G, id: 'sk:' + g.name, label: (g.name || 'Sinking fund') + ' (sinking fund)', amt: need * share, note: 'Move to this fund.' }); });
-    // Tithe, Four Walls and bills come first. If money runs out, trim from the bottom of the list (sinking funds first).
+    if (extra > 0) steps.push({ g: G, id: 'debt', label: 'Extra debt payment', amt: extra * gs, note: 'On top of minimums.' });
+    [['savings', 'savings goal', 'sv:'], ['sinking', 'sinking fund', 'sk:']].forEach(t => (state.goals[t[0]] || []).forEach(g => {
+      const need = goalMonthly(t[0], g), undated = !(+g.weekly > 0) && !(t[0] === 'sinking' ? g.due : g.date);
+      if (need > 0 || undated) steps.push({ g: G, id: t[2] + g.name, label: (g.name || t[1]) + ' (' + t[1] + ')', amt: need * gs, hint: undated, note: undated ? 'Add a date or a weekly amount on Goals.' : 'Move to this goal.' });
+    }));
+    // Tithe, Four Walls and bills come first. If money runs out, the bottom of the list is trimmed first. If money runs out, trim from the bottom of the list (sinking funds first).
     let over = steps.reduce((t, x) => t + Math.round(x.amt), 0) - Math.round(c.amt);
     for (let i = steps.length - 1; i >= keep && over > 0; i--) {
       const x = steps[i], cut = Math.min(Math.round(x.amt), over);
@@ -212,7 +232,7 @@
   function renderWeeks(M) {
     // Count 4 weekly paydays (or 2 biweekly) a month so a month with only that many paychecks still covers every bill in full.
     const Mc = state.income.reduce((t, r) => t + (+r.amount || 0) * (r.freq === 'weekly' ? 4 : r.freq === 'biweekly' ? 2 : 1), 0) || M;
-    const GNOTE = { 'Your Four Walls': 'Paid first, in full, before anything else. Move this money into the account you pay bills from.', 'Savings': 'Not optional. It is paid right after your Four Walls.', 'Catch up': 'These bills were short earlier. Put each amount toward the same bill it is named for.', 'Other recurring expenses': 'Phone, internet, subscriptions, and other bills. Same account.', 'More savings and goals': 'These get what is left. They are cut first when money is short.' };
+    const GNOTE = { 'Your Four Walls': 'Pay these first.', 'Savings': 'Pay this right after your Four Walls.', 'Catch up': 'Short earlier. Put each amount toward the bill named.', 'Other recurring expenses': '', 'More savings and goals': '' };
     const pct = (+state.tithePct || 0) / 100;
     const wsAll = weeksList(4);
     const st0 = wsAll[0].start, to = addDays(wsAll[3].end, 1);
@@ -233,7 +253,7 @@
     const bump = (label, kind, amt, k) => { let c = carry.find(x => x.label === label); if (!c) { c = { label, kind, amt: 0, since: k }; carry.push(c); } c.amt += amt; };
     Object.keys(byWeek).map(Number).sort((a, b) => a - b).forEach(k => {
       const o = byWeek[k];
-      const full = stepsFor({ planned: o.pl, amt: 1e12 }, null, Mc);
+      const full = stepsFor({ planned: o.pl, amt: 1e12, M0: M }, null, Mc);
       let rem = Math.max(0, o.amt * (1 - pct));
       const lines = [], shorts = [];
       const pay = x => { const p = Math.min(x.amt, rem); rem -= p; return p; };
@@ -274,16 +294,16 @@
       if (rec && rec.owed.length) body += '<div class="card-note">Still owed after this week: <strong>' + names(rec.owed) + '</strong>.</div>';
       if (rec && amt > 0) {
         let lastG = '', n = 0;
-        body += rec.lines.filter(s => s.amt > 0.5 || s.g === 'Your Four Walls' || s.id === 'tithe').map(s => {
+        body += rec.lines.filter(s => s.amt > 0.5 || s.hint || s.g === 'Your Four Walls' || s.id === 'tithe').map(s => {
           const k = 'w|' + dISO(w.start) + '|' + s.id, done = !!state.ppDone[k];
           const head = s.g !== lastG ? '<div style="margin:12px 0 2px;font-weight:700;color:var(--green)">' + E(s.g) + '</div>' + (GNOTE[s.g] ? '<div class="card-note" style="margin:0 0 4px">' + E(GNOTE[s.g]) + '</div>' : '') : '';
           lastG = s.g; n++;
-          return head + '<div class="ppstep' + (done ? ' done' : '') + '"><label><input type="checkbox" data-k="' + E(k) + '" ' + (done ? 'checked' : '') + '><span class="t">' + n + '. ' + E(s.label) + ' <span class="n">' + E(s.note || '') + '</span></span></label><span class="a">' + money0(s.amt) + '</span></div>';
+          return head + '<div class="ppstep' + (done ? ' done' : '') + '"><label><input type="checkbox" data-k="' + E(k) + '" ' + (done ? 'checked' : '') + ' data-amt="' + Math.round(s.amt) + '"><span class="t">' + n + '. ' + E(s.label) + ' <span class="n">' + E(s.note || '') + '</span></span></label><span class="a">' + money0(s.amt) + '</span></div>';
         }).join('') + '<div class="ppfree"><span>Left for everyday spending this week</span><span>' + money0(rec.free) + '</span></div>';
       } else if (has && conf) body += '<div class="card-note">No pay this week, so nothing could be set aside.</div>';
       return '<div class="card"><details' + (w.i === 0 ? ' open' : '') + '><summary style="cursor:pointer"><span class="card-title">Week ' + (w.i + 1) + ': ' + fmtD(w.start) + ' to ' + fmtD(w.end) + '</span> <span class="badge">' + E(status) + '</span> <strong style="float:right">' + (has ? money0(conf ? amt : planned) : '') + '</strong></summary>' + body + '</details></div>';
     }).join('');
-    return '<div class="card"><div class="card-title">Your pay, week by week</div><div class="card-note">Each week adds up all the pay you expect that week, from every income line. When pay lands, tap It came in, or type what you really got. The order never changes: tithe, then your Four Walls, then savings, then any catch-up on bills that were short, then everything else. If money runs short, the other things are cut and the Four Walls are paid. What was short is named, added back in the next weeks, and carried into next month until it is paid.</div></div>' + html;
+    return '<div class="card"><div class="card-title">Your pay, week by week</div><div class="card-note">When pay lands, tap It came in, or type what you got. Pay in this order. If money runs short, the Four Walls are paid first and the rest is cut. until it is paid.</div></div>' + html;
   }
   function actualBox(c) {
     return '<div class="card-note" style="margin:8px 0">' + c.parts.map(p => '<div style="margin:4px 0">' + E(p.name) + ': planned ' + money0(p.planned) + '. I actually got $ <input type="number" min="0" step="0.01" data-act="' + p.ri + '|' + p.key + '" value="' + (p.actual != null ? p.actual : '') + '" placeholder="' + Math.round(p.planned) + '" style="width:110px"></div>').join('') + '<div>Leave it empty if it matches the plan. Type the real amount when your pay lands and this check recalculates.</div></div>';
@@ -292,7 +312,7 @@
     ensure();
     const M = calc().income;
     const cs = upcomingChecks();
-    const titheCard = '<div class="card"><div class="card-note" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><strong>Tithe</strong> <span>Plan to give</span> <input id="ppTithe" type="number" min="0" max="100" step="0.5" value="' + E(state.tithePct) + '" style="width:80px"> <span>% of every paycheck. It is the first step on every check below.</span></div><div class="card-note" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px"><strong>Savings</strong> <span>Put at least $</span> <input id="ppSave" type="number" min="0" step="1" value="' + E(state.savePerCheck) + '" style="width:80px"> <span>from every paycheck into savings, on top of the Emergency Fund. Even $5 counts.</span></div></div>';
+    const titheCard = '<div class="card"><div class="card-note" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><strong>Tithe</strong> <span>Plan to give</span> <input id="ppTithe" type="number" min="0" max="100" step="0.5" value="' + E(state.tithePct) + '" style="width:80px"> <span>% of every paycheck.</span></div><div class="card-note" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px"><strong>Savings</strong> <span>Put at least $</span> <input id="ppSave" type="number" min="0" step="1" value="' + E(state.savePerCheck) + '" style="width:80px"> <span>from every paycheck into savings.</span></div></div>';
     const bindTithe = () => { const sv = document.getElementById('ppSave'); if (sv) sv.onchange = () => { state.savePerCheck = Math.max(0, parseFloat(sv.value) || 0); save(); renderPayPlan(); }; const ti = document.getElementById('ppTithe'); if (ti) ti.onchange = () => { state.tithePct = Math.max(0, Math.min(100, parseFloat(ti.value) || 0)); save(); renderPayPlan(); }; };
     if (!state.income.length || M <= 0 || !cs.length) {
       ppSec.innerHTML = '<div class="section-head"><h2>Pay Plan</h2></div>' + titheCard + '<div class="card"><div class="card-note">Add your income on the Treasury tab (what each check is, how often, and one real payday). Then this page tells you exactly what to do with every check.</div></div>';
@@ -325,12 +345,12 @@
         (free >= 0 ? '<div class="card-note">That is about ' + money0(weekly) + ' a week for everyday spending that is not listed above, like eating out, gas, and fun.</div>' : '<div class="card-note">This check does not cover everything on this list. Pick the items lowest on the list to trim or move, or change a due date on Treasury. Nothing is wrong with you or your plan. It is just math, and you can change it.</div>') +
         '</div>';
     }).join('');
-    ppSec.innerHTML = '<div class="section-head"><h2>Pay Plan</h2><div class="sub">What to do with each paycheck, in order. It is built from your Treasury bills, sinking funds, savings goals, Emergency Fund, and extra debt payment. Add or change any of them and this page updates.</div></div>' +
+    ppSec.innerHTML = '<div class="section-head"><h2>Pay Plan</h2><div class="sub">What to do with each paycheck, in order.</div></div>' +
       titheCard + renderWeeks(M);
     bindTithe();
     bindWeeks();
     ppSec.querySelectorAll('input[data-act]').forEach(el => el.onchange = () => { const a = el.dataset.act.split('|'), r = state.income[+a[0]]; if (!r) return; if (!r.actuals) r.actuals = {}; if (el.value === '') delete r.actuals[a[1]]; else r.actuals[a[1]] = parseFloat(el.value) || 0; save(); renderPayPlan(); });
-    ppSec.querySelectorAll('input[type=checkbox][data-k]').forEach(cb => cb.onchange = () => { if (cb.checked) state.ppDone[cb.dataset.k] = true; else delete state.ppDone[cb.dataset.k]; save(false); renderPayPlan(); });
+    ppSec.querySelectorAll('input[type=checkbox][data-k]').forEach(cb => cb.onchange = () => { const k = cb.dataset.k, id = k.slice(k.indexOf('|', k.indexOf('|') + 1) + 1), amt = Math.round(+cb.dataset.amt || 0); if (cb.checked) { state.ppDone[k] = amt || true; credit(id, amt); } else { const was = typeof state.ppDone[k] === 'number' ? state.ppDone[k] : amt; delete state.ppDone[k]; credit(id, -was); } save(false); renderPayPlan(); });
   }
 
   /* ---------- Spending: plan vs. real ---------- */
@@ -422,6 +442,32 @@
     const b = document.getElementById('goPayPlan'); if (b) b.onclick = () => { const t = document.querySelector('.tab[data-panel="payplan"]'); if (t) t.click(); };
   };
   renderSweepTargets = function () { const el = document.getElementById('sweepTargets'); if (el) el.innerHTML = ''; };
+  function decorateGoals(listId, list) {
+    const el = document.getElementById(listId); if (!el) return;
+    const M = calc().income;
+    el.querySelectorAll('.goalrow').forEach((row, i) => {
+      const g = (state.goals[list] || [])[i]; if (!g) return;
+      const w = M > 0 ? goalMonthly(list, g) * 12 / 52 : 0;
+      row.insertAdjacentHTML('beforeend', '<div class="goalmeta" style="margin-top:6px"><span>Pay Plan puts in <strong>' + money0(w) + ' a week</strong></span><span>Or a set amount each week $ <input type="number" min="0" step="1" data-gw="' + i + '" value="' + (g.weekly || '') + '" style="width:80px"></span></div>');
+    });
+    el.querySelectorAll('input[data-gw]').forEach(inp => inp.onchange = () => {
+      const g = state.goals[list][+inp.dataset.gw]; if (!g) return;
+      g.weekly = parseFloat(inp.value) || 0; if (!g.weekly) delete g.weekly;
+      save(); if (list === 'savings') renderSavings(); else renderSinking(); renderDashboard();
+    });
+  }
+  const origSvg = renderSavings, origSk = renderSinking;
+  renderSavings = function () { origSvg(); decorateGoals('savingsList', 'savings'); };
+  renderSinking = function () { origSk(); decorateGoals('sinkingList', 'sinking'); };
+  // Keep the screens simple: the Pay Plan is the one place that says what to do with money.
+  (function () {
+    const st = document.createElement('style'); st.textContent = '.tab[data-panel="calendar"]{display:none!important}'; document.head.appendChild(st);
+    const hide = el => { if (el) el.style.display = 'none'; };
+    ['sweepTargets', 'dashAlloc', 'dashReset'].forEach(id => { const e = document.getElementById(id); hide(e && e.closest('.card')); });
+    ['allocLedger', 'efPriority', 'reservesBudget', 'equityBudget', 'treasuryAlloc'].forEach(id => hide(document.getElementById(id)));
+    const es = document.getElementById('engSolvency');
+    if (es) { let n = es.nextElementSibling; while (n) { hide(n); n = n.nextElementSibling; } }
+  })();
   const origSave = save; let rbT = 0;
   save = function () { const r = origSave.apply(this, arguments); clearTimeout(rbT); rbT = setTimeout(function () { syncTithe(); renderBoth(); }, 0); return r; };
   const origAll = renderAll;
