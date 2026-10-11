@@ -235,8 +235,31 @@
   }
 
   function renderBoth() { try { renderPayPlan(); renderSpending(); } catch (e) { console.warn(e); } }
+  // Keep a Tithe line in The Four Walls on Treasury, figured from your income. Type your own amount there and it stops updating.
+  function syncTithe() {
+    try {
+      ensure();
+      const pct = +state.tithePct || 0;
+      const inc = calc().income;
+      const line = state.overhead.find(o => o.tier === '10% Tithe');
+      if (!line) {
+        if (pct > 0 && inc > 0 && !state.titheLineAdded) {
+          const cost = Math.round(inc * pct) / 100;
+          state.overhead.unshift({ category: 'Tithe (' + pct + '%)', cost, tier: '10% Tithe', action: 'Keep (Essential)', due: 1, kind: 'wall', auto: true, autoCost: cost });
+          state.titheLineAdded = true; save(false);
+        }
+        return;
+      }
+      state.titheLineAdded = true;
+      if (line.auto) {
+        if (Math.abs((+line.cost || 0) - (+line.autoCost || 0)) > 0.005) { delete line.auto; delete line.autoCost; save(false); return; }
+        const cost = Math.round(inc * pct) / 100;
+        if (Math.abs(cost - (+line.cost || 0)) > 0.005) { line.cost = cost; line.autoCost = cost; line.category = 'Tithe (' + pct + '%)'; save(false); }
+      }
+    } catch (e) { console.warn(e); }
+  }
   const origAll = renderAll;
-  renderAll = function () { origAll(); renderBoth(); };
+  renderAll = function () { syncTithe(); origAll(); renderBoth(); };
   window.addEventListener('message', e => {
     if (e.origin !== location.origin || !e.data || e.data.type !== 'money-init') return;
     setTimeout(() => { if (state.income && state.income.length) { const t = document.querySelector('.tab[data-panel="payplan"]'); if (t) t.click(); } }, 50);
