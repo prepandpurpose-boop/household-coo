@@ -461,8 +461,9 @@
   renderSinking = function () { origSk(); decorateGoals('sinkingList', 'sinking'); };
   // Keep the screens simple: the Pay Plan is the one place that says what to do with money.
   (function () {
-    const st = document.createElement('style'); st.textContent = '.tab[data-panel="calendar"],.tab[data-panel="dashboard"],.tab[data-panel="spending"],.tab[data-panel="reset"],.tab[data-panel="maintenance"],.tab[data-panel="playbooks"],.tab[data-panel="vault"],.tab[data-panel="howto"]{display:none!important}'; document.head.appendChild(st);
+    const st = document.createElement('style'); st.textContent = '.tab[data-panel="calendar"],.tab[data-panel="dashboard"],.tab[data-panel="spending"],.tab[data-panel="reset"],.tab[data-panel="maintenance"],.tab[data-panel="playbooks"],.tab[data-panel="vault"]{display:none!important}'; document.head.appendChild(st);
     const hide = el => { if (el) el.style.display = 'none'; };
+    const ht = document.querySelector('.tab[data-panel="howto"]'); if (ht && ht.parentNode) ht.parentNode.insertBefore(ht, ht.parentNode.firstChild);
     ['sweepTargets', 'dashAlloc', 'dashReset'].forEach(id => { const e = document.getElementById(id); hide(e && e.closest('.card')); });
     ['allocLedger', 'efPriority', 'reservesBudget', 'equityBudget', 'treasuryAlloc'].forEach(id => hide(document.getElementById(id)));
     const es = document.getElementById('engSolvency');
