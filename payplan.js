@@ -257,6 +257,8 @@
       }
     } catch (e) { console.warn(e); }
   }
+  const origSave = save; let rbT = 0;
+  save = function () { const r = origSave.apply(this, arguments); clearTimeout(rbT); rbT = setTimeout(function () { syncTithe(); renderBoth(); }, 0); return r; };
   const origAll = renderAll;
   renderAll = function () { syncTithe(); origAll(); renderBoth(); };
   window.addEventListener('message', e => {
