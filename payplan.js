@@ -368,6 +368,13 @@
       }
     } catch (e) { console.warn(e); }
   }
+  // The old Treasury "pay ledger" boxes split money a different way and showed numbers that disagreed with the Pay Plan. One plan only.
+  renderAllocLedger = function () {
+    const el = document.getElementById('allocLedger'); if (!el) return;
+    el.innerHTML = '<div class="ledger"><h4>Your plan for each week is on the Pay Plan tab</h4><div class="sub">The Pay Plan sets aside tithe first, then your Four Walls, then other bills, savings, and goals, week by week. It is the only place with those amounts, so the numbers never disagree.</div><button class="btn btn-sm" id="goPayPlan">Open the Pay Plan</button></div>';
+    const b = document.getElementById('goPayPlan'); if (b) b.onclick = () => { const t = document.querySelector('.tab[data-panel="payplan"]'); if (t) t.click(); };
+  };
+  renderSweepTargets = function () { const el = document.getElementById('sweepTargets'); if (el) el.innerHTML = ''; };
   const origSave = save; let rbT = 0;
   save = function () { const r = origSave.apply(this, arguments); clearTimeout(rbT); rbT = setTimeout(function () { syncTithe(); renderBoth(); }, 0); return r; };
   const origAll = renderAll;
