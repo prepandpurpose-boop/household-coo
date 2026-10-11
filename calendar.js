@@ -78,7 +78,7 @@
   }
   const who = id => { if (!id) return ''; if (id === S.user.id) return 'Me'; const m = S.members.find(x => x.user_id === id); return m ? (m.display_name || m.role) : 'Member'; };
 
-  function itemsOn(ds) {
+  function itemsOn(ds, withMoney) {
     const out = [];
     (S.cal.items || []).forEach(it => {
       if (it.who && it.who !== S.user.id && !canManage()) return;
@@ -96,9 +96,9 @@
       const d = pd(ds);
       (S.mdata.overhead || []).forEach(o => {
         if (o.action === 'Prune (Cancel)' || !(+o.cost > 0) || !(+o.due >= 1)) return;
-        if (d.getDate() === Math.min(+o.due, dim(d.getFullYear(), d.getMonth()))) { const key = 'b:' + o.category + '|' + ds; out.push({ type: 'bill', title: 'Pay ' + o.category + ' ' + money(o.cost), key, done: !!S.cal.done[key] }); }
+        if (d.getDate() === Math.min(+o.due, dim(d.getFullYear(), d.getMonth()))) { const key = 'b:' + o.category + '|' + ds; if (withMoney) out.push({ type: 'bill', title: 'Pay ' + o.category + ' ' + money(o.cost), key, done: !!S.cal.done[key] }); }
       });
-      (S.mdata.income || []).forEach(r => { if (paydayOn(r, ds)) out.push({ type: 'payday', title: 'Payday: ' + (r.source || 'Pay') + ' ' + money(r.amount) }); });
+      (S.mdata.income || []).forEach(r => { if (withMoney && paydayOn(r, ds)) out.push({ type: 'payday', title: 'Payday: ' + (r.source || 'Pay') + ' ' + money(r.amount) }); });
       (S.mdata.maint || []).forEach(m => {
         if (!m.last || !m.interval) return;
         const nd = pd(m.last); nd.setMonth(nd.getMonth() + (+m.interval));
@@ -120,7 +120,7 @@
   function overdue() {
     const t = todayISO(), out = [];
     (S.tasks || []).forEach(x => { if (x.due_date && x.due_date < t && x.status !== 'done') out.push({ ds: x.due_date, it: { type: x.kind === 'appointment' ? 'appointment' : 'todo', title: x.title, who: x.assigned_to, tid: x.id, done: false } }); });
-    if (moneyOK()) for (let i = 7; i >= 1; i--) { const ds = addDays(t, -i); itemsOn(ds).forEach(it => { if (it.type === 'bill' && !it.done) out.push({ ds, it }); }); }
+    if (false) for (let i = 7; i >= 1; i--) { const ds = addDays(t, -i); itemsOn(ds).forEach(it => { if (it.type === 'bill' && !it.done) out.push({ ds, it }); }); }
     return out;
   }
 
@@ -146,6 +146,22 @@
     o.innerHTML = '<div style="background:#fff;max-width:640px;margin:0 auto;border-radius:12px;padding:20px 22px;position:relative"><button class="btn ghost" id="rcx" style="position:absolute;top:10px;right:10px" aria-label="Close">&#10005;</button>' + body + '</div>';
     o.onclick = e => { if (e.target === o || e.target.id === 'rcx') o.remove(); };
     document.body.appendChild(o);
+  }
+
+
+  function myMoney() {
+    if (!moneyOK()) return '';
+    const t = todayISO(), past = [], now = [], up = [];
+    for (let i = -7; i <= 7; i++) {
+      const ds = addDays(t, i);
+      itemsOn(ds, true).forEach(it => {
+        if (it.type !== 'bill' && it.type !== 'payday') return;
+        if (i < 0) { if (it.type === 'bill' && !it.done) past.push({ ds, it }); } else if (i === 0) now.push({ ds, it }); else up.push({ ds, it });
+      });
+    }
+    const sec = (h, list) => list.length ? '<h3 style="margin:14px 0 2px;font-size:20px">' + h + '</h3>' + list.map(x => rowHtml(x.it, x.ds, true)).join('') : '';
+    const body = sec('Past due', past) + sec('Today', now) + sec('Next 7 days', up);
+    return '<div class="card" style="margin-bottom:18px"><h2>Only you: bills and paydays</h2><p class="note">Nobody else in the house sees this.</p>' + (body || '<p class="note">Nothing coming up.</p>') + '</div>';
   }
 
   window.calToday = function () {
@@ -183,7 +199,7 @@
       '<div style="margin-top:14px"><button class="btn" id="cf_add">Add</button></div></div>';
     const others = S.members.filter(x => !['owner', 'adult'].includes(x.role) && x.user_id !== S.user.id);
     const perm = !canManage() || !others.length ? '' : '<div class="card" style="margin-top:18px"><h2>Who else can add</h2><p class="note">Only you can add to the Command Center unless you tick someone here.</p>' + others.map(x => '<label style="display:flex;gap:10px;align-items:center;margin:8px 0"><input type="checkbox" style="width:22px;min-height:22px" data-perm="' + x.user_id + '" ' + (S.cal.perms[x.user_id] ? 'checked' : '') + '>' + esc(who(x.user_id)) + ' (' + esc(x.role) + ')</label>').join('') + '</div>';
-    return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>Command Center.</h1><div class="rule"></div>' + calToday() +
+    return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>Command Center.</h1><div class="rule"></div>' + calToday() + myMoney() +
       '<div class="card"><div class="cal-nav"><button class="btn ghost" data-cm="-1">&#8249;</button><h2 style="min-width:190px">' + MN[m] + ' ' + y + '</h2><button class="btn ghost" data-cm="1">&#8250;</button><button class="btn ghost" data-cm="0">Today</button></div>' +
       '<div class="cal-grid">' + DN.map(d => '<div class="cal-h">' + d + '</div>').join('') + cells + '</div></div>' +
       '<div class="card" style="margin-top:18px"><h2>' + selLabel + '</h2>' + (selItems.map(it => rowHtml(it, sel, false)).join('') || '<p class="note">Nothing on this day.</p>') + '</div>' + add + perm;
