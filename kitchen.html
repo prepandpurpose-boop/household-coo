@@ -307,7 +307,7 @@ html,body{height:100%;overflow:hidden;font-family:'Jost',sans-serif;background:v
   <div class="ob-wrap">
     <div style="text-align:center;margin-bottom:28px">
       <div style="font-size:44px;margin-bottom:10px">🥩❄️📦</div>
-      <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;color:var(--green);margin-bottom:8px">Welcome to Meal Builder Pro</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;color:var(--green);margin-bottom:8px">Welcome to your Kitchen</div>
       <div style="font-size:14px;color:#666;line-height:1.6">You don't have a food problem. You have a system problem. Let's fix that in 3 minutes.</div>
     </div>
     <div style="display:flex;gap:6px;justify-content:center;margin-bottom:28px" id="ob-dots">
@@ -377,7 +377,7 @@ html,body{height:100%;overflow:hidden;font-family:'Jost',sans-serif;background:v
         <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:8px">Your first 3 steps:</div>
         <div style="font-size:13px;color:#1b5e20;line-height:2">1. Go to Meal Builder → pick proteins for the week<br>2. Build your meals → get your cook list and buy list<br>3. Log frozen inventory if you already have cooked bags</div>
       </div>
-      <button class="btn btn-primary btn-full btn-lg" onclick="finishOnboarding()">Start Using Meal Builder Pro →</button>
+      <button class="btn btn-primary btn-full btn-lg" onclick="finishOnboarding()">Start Using the Kitchen →</button>
     </div>
   </div>
 </div>
@@ -387,7 +387,7 @@ html,body{height:100%;overflow:hidden;font-family:'Jost',sans-serif;background:v
   <div class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <div class="sidebar-logo">🌿</div>
-      <div class="sidebar-title">Meal Builder Pro</div>
+      <div class="sidebar-title">Household COO</div>
       <div class="sidebar-sub">Prep & Purpose</div>
     </div>
     <div class="sidebar-nav">
@@ -2968,7 +2968,7 @@ function printWeekCalendar(){
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
-  <p style="margin-top:16px;font-size:11px;color:#999">Printed from Meal Builder Pro · Prep & Purpose · Reduce decisions. Install structure. And as always — steward what you have, serve where you are.</p>
+  <p style="margin-top:16px;font-size:11px;color:#999">Printed from Household COO · Reduce decisions. Install structure. And as always — steward what you have, serve where you are.</p>
   </body></html>`;
 
   const w=window.open('','_blank');w.document.write(html);w.document.close();w.print();
@@ -3065,7 +3065,7 @@ function printMonthCalendar(){
   <p>Prep & Purpose · mealbuilderpro.prepandpurpose.com</p>
   <table><thead><tr>${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map(d=>`<th>${d}</th>`).join('')}</tr></thead>
   <tbody>${tableRows}</tbody></table>
-  <p style="margin-top:12px;font-size:10px;color:#999">Printed from Meal Builder Pro · Reduce decisions. Install structure.</p>
+  <p style="margin-top:12px;font-size:10px;color:#999">Printed from Household COO · Reduce decisions. Install structure.</p>
   </body></html>`;
 
   const w=window.open('','_blank');w.document.write(html);w.document.close();w.print();
@@ -3729,7 +3729,7 @@ function restoreInventoryFromPull(pull){
 
 // ─── SETTINGS ─────────────────────────────────────────────────────────────────
 function rGuide(){
-  return`<div class="page-title">How to Use Meal Builder Pro</div>
+  return`<div class="page-title">How to Use the Kitchen</div>
   ${!A.onboarded?`<div style="background:var(--green);color:white;border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
     <div style="font-size:14px;font-weight:700">Welcome — read through, then dive in</div>
     <button onclick="A.onboarded=true;save();A.page='dashboard';render()" style="background:white;color:var(--green);border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Go to Dashboard →</button>
@@ -3933,7 +3933,7 @@ Print the recipe to see everything you need — check off what you have, pick up
 
   <div class="card" style="margin-bottom:8px;padding:14px 16px">
     <div style="font-size:14px;font-weight:700;margin-bottom:8px">📱 Add to Your Home Screen</div>
-    <div style="font-size:13px;color:var(--text-muted);line-height:1.6"><strong>iPhone:</strong> Tap the share icon at the bottom of Safari → scroll down → tap "Add to Home Screen" → tap Add. Meal Builder Pro will appear on your home screen like an app.<br><br><strong>Android:</strong> Tap the three dots (⋮) in Chrome → tap "Add to Home Screen" → tap Add.</div>
+    <div style="font-size:13px;color:var(--text-muted);line-height:1.6"><strong>iPhone:</strong> Tap the share icon at the bottom of Safari → scroll down → tap "Add to Home Screen" → tap Add. Household COO will appear on your home screen like an app.<br><br><strong>Android:</strong> Tap the three dots (⋮) in Chrome → tap "Add to Home Screen" → tap Add.</div>
   </div>
   <div style="text-align:center;padding:24px 0;font-size:13px;color:var(--text-muted);line-height:1.6">
     Reduce decisions. Install structure.<br>
@@ -4152,7 +4152,7 @@ function printBlankInventory(){
 
   let pantryQtyRows='';
   ['baking','fridge','fresh'].forEach(cat=>{
-    pantryQtyRows+=`<tr><td colspan="2" style="padding:8px 8px 3px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#1e4d35;background:#f0faf2">${catLabels[cat]}</td></tr>`;
+    pantryQtyRows+=`<tr><td colspan="2" style="padding:8px 8px 3px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#14213d;background:#F6EBC4;-webkit-print-color-adjust:exact;print-color-adjust:exact">${catLabels[cat]}</td></tr>`;
     (A.pantry[cat]||[]).forEach(item=>{
       pantryQtyRows+=`<tr><td style="padding:7px 8px;font-size:12px;border-bottom:1px solid #eee">${item.name}${item.fresh?' <span style="font-size:9px;color:#2e7d32;font-weight:700">FRESH</span>':''}</td><td style="padding:7px 8px;border-bottom:1px solid #eee;width:80px"><div style="border-bottom:2px solid #333;height:18px"></div><div style="font-size:9px;color:#999;margin-top:1px">${item.unit||''}</div></td></tr>`;
     });
@@ -4160,15 +4160,15 @@ function printBlankInventory(){
 
   let pantryToggleRows='';
   ['oils','condiments','spices'].forEach(cat=>{
-    pantryToggleRows+=`<tr><td style="padding:8px 8px 3px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#1e4d35;background:#f0faf2">${catLabels[cat]}</td></tr>`;
+    pantryToggleRows+=`<tr><td style="padding:8px 8px 3px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#14213d;background:#F6EBC4;-webkit-print-color-adjust:exact;print-color-adjust:exact">${catLabels[cat]}</td></tr>`;
     (A.pantry[cat]||[]).forEach(item=>{
       pantryToggleRows+=`<tr><td style="padding:6px 8px;font-size:12px;border-bottom:1px solid #eee"><span style="display:inline-block;width:12px;height:12px;border:1.5px solid #333;border-radius:2px;margin-right:7px;vertical-align:middle"></span>${item.name}</td></tr>`;
     });
   });
 
-  const html=`<html><head><title>Prep & Purpose — Inventory Sheet</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,serif;background:#fff;color:#1a1a1a;padding:22px 26px;max-width:800px;margin:0 auto;font-size:13px}.hdr{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #1e4d35;padding-bottom:8px;margin-bottom:6px}.hdr-b{font-size:18px;font-weight:700;color:#1e4d35}.sub{font-size:10px;color:#888;margin-bottom:12px}.rule-box{background:#f0faf2;border:1px solid #d8f3dc;border-radius:6px;padding:8px 12px;font-size:11px;color:#1e4d35;margin-bottom:14px;line-height:1.7}.sec{font-size:13px;font-weight:700;color:#1e4d35;margin:14px 0 5px;border-left:4px solid #1e4d35;padding-left:8px}table{width:100%;border-collapse:collapse}th{font-size:10px;font-weight:700;text-transform:uppercase;color:#888;padding:5px 8px;text-align:left;border-bottom:2px solid #1e4d35}.col2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}.ftr{margin-top:20px;border-top:1px solid #eee;padding-top:8px;font-size:10px;color:#bbb;text-align:center}@media print{body{padding:14px}}</style></head><body>
-  <div class="hdr"><div class="hdr-b">🌿 Prep & Purpose — Inventory Sheet</div><div style="font-size:11px;color:#888">Week of: ___________________________</div></div>
-  <div class="sub">Count every bag — in the freezer AND thawed in the fridge. Both count. Fill out before entering into Meal Builder Pro.</div>
+  const html=`<html><head><title>Household COO — Kitchen Inventory Sheet</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,serif;background:#fff;color:#1a1a1a;padding:22px 26px;max-width:800px;margin:0 auto;font-size:13px}.hdr{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #C59B27;padding-bottom:8px;margin-bottom:6px}.hdr-b{font-size:18px;font-weight:700;color:#14213d}.sub{font-size:10px;color:#888;margin-bottom:12px}.rule-box{background:#14213d;border:2px solid #C59B27;border-radius:6px;padding:8px 12px;font-size:11px;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;margin-bottom:14px;line-height:1.7}.sec{font-size:13px;font-weight:700;color:#fff;background:#14213d;margin:14px 0 5px;border-left:6px solid #C59B27;padding:5px 10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}table{width:100%;border-collapse:collapse}th{font-size:10px;font-weight:700;text-transform:uppercase;color:#888;padding:5px 8px;text-align:left;border-bottom:2px solid #C59B27}.col2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}.ftr{margin-top:20px;border-top:1px solid #eee;padding-top:8px;font-size:10px;color:#bbb;text-align:center}@media print{body{padding:14px}}</style></head><body>
+  <div class="hdr"><div class="hdr-b">🌿 Household COO — Kitchen Inventory Sheet</div><div style="font-size:11px;color:#888">Week of: ___________________________</div></div>
+  <div class="sub">Count every bag — in the freezer AND thawed in the fridge. Both count. Fill out before entering into Household COO.</div>
   <div class="rule-box">📏 1 quart bag = 1.5 lbs cooked protein &nbsp;·&nbsp; 1 quart bag = 3 cups cooked veg or grains &nbsp;·&nbsp; Emergency meals = GALLON bags only &nbsp;·&nbsp; Magic number = 6 emergency meals per week</div>
 
   <div class="sec">🥩 Layer 2 — Protein Bases (cooked, lightly seasoned)</div>
