@@ -25,13 +25,20 @@ module.exports = async (req, res) => {
       },
       body: JSON.stringify({
         model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',
-        max_tokens: 4000,
+        max_tokens: 8000,
         system: systemPrompt || '',
         messages: [{ role: 'user', content: userPrompt }]
       })
     });
     const data = await r.json();
-    return res.status(r.status).json(data);
+    if (!r.ok) {
+      console.log('anthropic error', r.status, JSON.stringify(data).slice(0, 300));
+      return res.status(r.status).json(data);
+    }
+    const blocks = Array.isArray(data.content) ? data.content : [];
+    const text = blocks.filter(b => b && b.type === 'text').map(b => b.text).join('');
+    console.log('anthropic ok', data.stop_reason, blocks.map(b => b && b.type).join(','), text.length);
+    return res.status(200).json({ content: [{ type: 'text', text }], stop_reason: data.stop_reason });
   } catch (e) {
     return res.status(500).json({ error: 'Server error' });
   }
