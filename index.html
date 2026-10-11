@@ -63,6 +63,7 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
 <script src="config.js"></script>
 <script src="calendar.js?v=5"></script>
 <script src="kidmoney.js?v=1"></script>
+<script src="people.js?v=1"></script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -93,9 +94,10 @@ function createHousehold(){
   <label for="yn">Your name</label><input id="yn" placeholder="Vanessa">
   <div style="margin-top:16px"><button class="btn" id="mk">Create it</button></div><div class="err" id="msg"></div></div></div>`;
   $('#mk').onclick=async()=>{
+    if($('#mk').disabled)return;$('#mk').disabled=true;
     const h_name=$('#hn').value.trim()||'My Household';
     const {error}=await sb.rpc('create_household',{h_name});
-    if(error){$('#msg').textContent=error.message;return}
+    if(error){$('#msg').textContent=error.message;$('#mk').disabled=false;return}
     await sb.rpc('set_my_name',{n:$('#yn').value.trim()||'Owner'});
     load();
   };
@@ -108,10 +110,12 @@ async function load(){
   const {data:{session}}=await sb.auth.getSession();
   if(!session){signIn();return}
   S.user=session.user;
+  try{await sb.rpc('claim_invites')}catch(e){console.warn(e)}
   const {data:mem,error}=await sb.from('household_members').select('*').eq('user_id',S.user.id);
   if(error){signIn(error.message);return}
   if(!mem.length){createHousehold();return}
   S.me=mem[0];
+  if(mem.length>1){const {data:cnt}=await sb.from('household_members').select('household_id').in('household_id',mem.map(x=>x.household_id));const c={};(cnt||[]).forEach(x=>{c[x.household_id]=(c[x.household_id]||0)+1});mem.sort((a,b)=>(c[b.household_id]||0)-(c[a.household_id]||0)||String(a.created_at).localeCompare(String(b.created_at)));S.me=mem[0];}
   const {data:hh}=await sb.from('households').select('*').eq('id',S.me.household_id).single();
   S.hh=hh;
   const {data:all}=await sb.from('household_members').select('*').eq('household_id',S.me.household_id);
@@ -204,6 +208,7 @@ function navItems(){
   const n=[['cal','Command Center'],['k:dashboard','Kitchen']];
   if(S.members.some(m=>m.role==='kid'))n.push(['km',"Kids' money"]);
   if(seesMoney())n.push(['money','Money']);
+  n.push(['people','People']);
   return n;
 }
 function shell(){
@@ -231,6 +236,7 @@ function render(){
     });
   }
   else if(S.page==='money'&&seesMoney()) m.innerHTML='<iframe id="mframe" src="money.html?v='+Date.now()+'" title="Money"></iframe>';
+  else if(S.page==='people') m.innerHTML=peopleView();
   else if(S.page==='km') m.innerHTML=kmView();
   else if(S.page==='cal'||S.page==='home') m.innerHTML=calView()+openList();
   else if(S.page==='tasks'||S.page==='home') m.innerHTML=tasksView(S.page==='home');
@@ -286,6 +292,7 @@ function bind(){
   });
   if(typeof calBind==='function')calBind();
   if(typeof kmBind==='function')kmBind();
+  if(typeof peopleBind==='function')peopleBind();
 }
 sb.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_IN'&&!S.user)load() });
 load();
