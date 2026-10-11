@@ -33,6 +33,8 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
 #side a.on{background:var(--gold);color:#10203d;font-weight:600}
 #me{margin-top:auto;border:1px solid rgba(255,255,255,.3);border-radius:12px;padding:12px;font-size:13px}
 #main{flex:1;padding:36px 44px;max-width:1100px}
+#main.k{padding:0;max-width:none}
+#kframe{width:100%;height:100vh;border:0;display:block}
 .row{display:flex;gap:12px;align-items:flex-start;padding:14px 0;border-top:1px solid var(--track)}
 .row:first-child{border-top:0}
 .chk{flex:0 0 28px;width:28px;height:28px;border-radius:8px;border:2px solid var(--blue);background:#fff;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
@@ -47,7 +49,7 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
   #side{width:auto;flex:none;flex-direction:row;flex-wrap:wrap;padding:10px;border-right:0;border-bottom:3px solid var(--gold)}
   #side .brand,#side .by,#me{display:none}
   #side a{padding:10px 12px}
-  #main{padding:22px 16px}h1{font-size:36px}
+  #main{padding:22px 16px}#main.k{padding:0}#kframe{height:calc(100vh - 120px)}h1{font-size:36px}
 }
 </style>
 </head>
@@ -59,7 +61,7 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const sb=supabase.createClient(COO_CONFIG.SUPABASE_URL,COO_CONFIG.SUPABASE_PUBLISHABLE_KEY);
-let S={user:null,hh:null,me:null,members:[],tasks:[],page:'home'};
+let S={user:null,hh:null,me:null,members:[],tasks:[],page:'home',kdata:null};
 
 // ---------- screens ----------
 function signIn(msg){
@@ -109,10 +111,29 @@ async function load(){
   const {data:all}=await sb.from('household_members').select('*').eq('household_id',S.me.household_id);
   S.members=all||[];
   await loadTasks();
+  await loadKitchen();
   if(!S.me.display_name){const n=prompt('What name should the household see for you?');if(n){await sb.rpc('set_my_name',{n});S.me.display_name=n;const i=S.members.findIndex(x=>x.user_id===S.user.id);if(i>=0)S.members[i].display_name=n}}
   S.page=S.me.role==='kid'?'tasks':'home';
   shell();
 }
+async function loadKitchen(){
+  const {data}=await sb.from('app_data').select('data').eq('household_id',S.me.household_id).eq('module','meal_builder').maybeSingle();
+  S.kdata=data?data.data:null;
+}
+let _ksave=null;
+async function saveKitchen(d){
+  S.kdata=d;
+  const {error}=await sb.from('app_data').upsert({household_id:S.me.household_id,module:'meal_builder',data:d,updated_at:new Date().toISOString()},{onConflict:'household_id,module'});
+  if(error)console.warn('kitchen save failed',error.message);
+}
+window.addEventListener('message',e=>{
+  if(e.origin!==location.origin)return;
+  const m=e.data||{};
+  const f=document.getElementById('kframe');
+  if(m.type==='kitchen-ready'&&f&&e.source===f.contentWindow){
+    f.contentWindow.postMessage({type:'kitchen-init',data:S.kdata,email:S.user.email,page:S.page.slice(2)},location.origin);
+  }else if(m.type==='kitchen-save'){ saveKitchen(m.data); }
+});
 async function loadTasks(){
   const {data}=await sb.from('tasks').select('*').eq('household_id',S.me.household_id).order('created_at',{ascending:true});
   S.tasks=data||[];
@@ -122,7 +143,7 @@ async function loadTasks(){
 function navItems(){
   const kid=S.me.role==='kid', staff=['helper','staff'].includes(S.me.role);
   if(kid||staff) return [['tasks','My tasks']].concat(kid?[['add','Add what I need'],['dinner','Dinner']]:[]);
-  const n=[['home','Home'],['kitchen','Kitchen']];
+  const n=[['home','Home'],['k:dashboard','Kitchen'],['k:inventory','&nbsp;&nbsp;Inventory'],['k:pantry','&nbsp;&nbsp;Staples'],['k:builder','&nbsp;&nbsp;Meal Builder'],['k:favorites','&nbsp;&nbsp;Favorites'],['k:calendar','&nbsp;&nbsp;Meal calendar'],['k:grocery','&nbsp;&nbsp;Grocery list']];
   if(seesMoney())n.push(['money','Money']);
   n.push(['tasks','Tasks']);
   return n;
@@ -132,13 +153,19 @@ function shell(){
   ${navItems().map(([k,l])=>`<a data-p="${k}" class="${S.page===k?'on':''}">${l}</a>`).join('')}
   <div id="me"><b>${esc(S.hh?.name)}</b><br>${esc(S.me.role)}${seesMoney()?' · sees money':''}<br><a id="out" style="padding:6px 0 0;color:var(--gold-l);font-size:13px">Sign out</a></div></nav>
   <main id="main"></main></div>`;
-  document.querySelectorAll('#side a[data-p]').forEach(a=>a.onclick=()=>{S.page=a.dataset.p;shell()});
+  document.querySelectorAll('#side a[data-p]').forEach(a=>a.onclick=()=>{
+    const to=a.dataset.p, f=document.getElementById('kframe');
+    if(f&&to.startsWith('k:')&&S.page.startsWith('k:')){S.page=to;f.contentWindow.postMessage({type:'kitchen-page',page:to.slice(2)},location.origin);document.querySelectorAll('#side a[data-p]').forEach(x=>x.classList.toggle('on',x.dataset.p===to));return}
+    S.page=to;shell();
+  });
   $('#out').onclick=async()=>{await sb.auth.signOut();S.user=null;signIn()};
   render();
 }
 function render(){
   const m=$('#main');
-  if(S.page==='tasks'||S.page==='home') m.innerHTML=tasksView(S.page==='home');
+  m.classList.toggle('k',S.page.startsWith('k:'));
+  if(S.page.startsWith('k:')) m.innerHTML='<iframe id="kframe" src="kitchen.html" title="Kitchen"></iframe>';
+  else if(S.page==='tasks'||S.page==='home') m.innerHTML=tasksView(S.page==='home');
   else if(S.page==='add') m.innerHTML=addView();
   else m.innerHTML=soon(S.page);
   bind();
