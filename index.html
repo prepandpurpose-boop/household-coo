@@ -61,10 +61,11 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
-<script src="calendar.js?v=5"></script>
+<script src="calendar.js?v=6"></script>
 <script src="kidmoney.js?v=1"></script>
 <script src="people.js?v=1"></script>
 <script src="receipts.js?v=1"></script>
+<script src="tv.js?v=1"></script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -127,6 +128,7 @@ async function load(){
   try{await loadCal()}catch(e){console.warn(e)}
   if(!S.me.display_name){const n=prompt('What name should the household see for you?');if(n){await sb.rpc('set_my_name',{n});S.me.display_name=n;const i=S.members.findIndex(x=>x.user_id===S.user.id);if(i>=0)S.members[i].display_name=n}}
   S.page=S.me.role==='kid'?'tasks':'cal';
+  if(/[?&]tv=1/.test(location.search)&&typeof tvStart==='function'){tvStart();return}
   shell();
 }
 async function loadKitchen(){
@@ -240,7 +242,7 @@ function render(){
   else if(S.page==='receipts'&&seesMoney()) m.innerHTML=receiptsView();
   else if(S.page==='people') m.innerHTML=peopleView();
   else if(S.page==='km') m.innerHTML=kmView();
-  else if(S.page==='cal'||S.page==='home') m.innerHTML=calView()+openList();
+  else if(S.page==='cal'||S.page==='home') m.innerHTML='<div style="text-align:right;margin-bottom:8px"><button class="btn ghost" id="tvgo">📺 Show on TV</button></div>'+calView()+openList();
   else if(S.page==='tasks'||S.page==='home') m.innerHTML=tasksView(S.page==='home');
   else if(S.page==='add') m.innerHTML=addView();
   else m.innerHTML=soon(S.page);
@@ -296,6 +298,7 @@ function bind(){
   if(typeof kmBind==='function')kmBind();
   if(typeof peopleBind==='function')peopleBind();
   if(typeof receiptsBind==='function')receiptsBind();
+  const tvb=document.getElementById('tvgo');if(tvb)tvb.onclick=()=>tvStart();
 }
 sb.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_IN'&&!S.user)load() });
 load();
