@@ -323,7 +323,7 @@ html,body{height:100%;overflow:hidden;font-family:'Jost',sans-serif;background:v
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px">
         <div style="display:flex;gap:12px;align-items:flex-start;padding:14px;background:#f9f7f4;border-radius:10px"><div style="font-size:22px;width:34px;flex-shrink:0">🥩</div><div><div style="font-weight:700;font-size:14px;margin-bottom:3px">Layer 2 — Bases</div><div style="font-size:13px;color:#666">Cooked proteins stored in quart bags. 1 bag = 1.5 lbs cooked. Log what's in your freezer and the app tracks what you use.</div></div></div>
         <div style="display:flex;gap:12px;align-items:flex-start;padding:14px;background:#f9f7f4;border-radius:10px"><div style="font-size:22px;width:34px;flex-shrink:0">📦</div><div><div style="font-weight:700;font-size:14px;margin-bottom:3px">Layer 3 — Supports</div><div style="font-size:13px;color:#666">Cooked grains, vegetables, and beans in quart bags (1 bag = 3 cups), plus canned, dry, and fresh pantry items.</div></div></div>
-        <div style="display:flex;gap:12px;align-items:flex-start;padding:14px;background:#f9f7f4;border-radius:10px"><div style="font-size:22px;width:34px;flex-shrink:0">🚨</div><div><div style="font-weight:700;font-size:14px;margin-bottom:3px">Layer 4 — Emergency Meals</div><div style="font-size:13px;color:#666">Complete cooked meals in gallon bags. Pull, heat, eat. Magic number is 6. Always.</div></div></div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:14px;background:#f9f7f4;border-radius:10px"><div style="font-size:22px;width:34px;flex-shrink:0">🚨</div><div><div style="font-weight:700;font-size:14px;margin-bottom:3px">Layer 4 — Emergency Meals</div><div style="font-size:13px;color:#666">Complete cooked meals in gallon bags. Pull, heat, eat. Magic number = 6 emergency meals per week. Always.</div></div></div>
       </div>
       <button class="btn btn-primary btn-full btn-lg" onclick="obNext(1)">Got it — Next →</button>
     </div>
@@ -925,7 +925,7 @@ function rDashboard(){
   <div class="page-sub">Here is where your kitchen stands today.</div>`;
 
   if(emergencyCount<6){
-    html+=`<div class="alert alert-red"><span>🚨</span><div>You have <strong>${emergencyCount} emergency meal${emergencyCount!==1?"s":""}</strong> — ${emergencyCount<6?`build ${6-emergencyCount} more to reach your safety net of 6`:"you\'re at your target of 6"}.</div></div>`;
+    html+=`<div class="alert alert-red"><span>🚨</span><div>You have <strong>${emergencyCount} emergency meal${emergencyCount!==1?"s":""}</strong> — ${emergencyCount<6?`build ${6-emergencyCount} more to reach 6 emergency meals per week`:"you\'re at 6 emergency meals per week"}.</div></div>`;
   }
   if(freshItems.length>0){
     html+=`<div class="alert alert-gold"><span>⚡</span><div><strong>Use these first</strong> — fresh items on hand: ${freshItems.slice(0,4).map(f=>f.name).join(', ')}${freshItems.length>4?' and more':''}.</div></div>`;
@@ -937,7 +937,7 @@ function rDashboard(){
   html+=`<div class="grid-4" style="margin-bottom:20px">
     <div class="stat-card"><div class="stat-label">Frozen Bags</div><div class="stat-value">${totalFrozenBags}</div><div class="stat-sub">cooked protein bags</div></div>
     <div class="stat-card"><div class="stat-label">Supports Stocked</div><div class="stat-value">${supportsStocked}</div><div class="stat-sub">frozen, canned & dry</div></div>
-    <div class="stat-card"><div class="stat-label">Emergency Meals</div><div class="stat-value" style="color:${emergencyCount>=6?'var(--green)':'#c62828'}">${emergencyCount}</div><div class="stat-sub">magic number is 6</div></div>
+    <div class="stat-card"><div class="stat-label">Emergency Meals</div><div class="stat-value" style="color:${emergencyCount>=6?'var(--green)':'#c62828'}">${emergencyCount}</div><div class="stat-sub">Magic number = 6 emergency meals per week</div></div>
     <div class="stat-card" style="border-color:#2980b9;background:${(()=>{const lb=A.lunchBank||0,tgt=(A.householdSize||4)*20;const pct=lb/tgt;return pct===0?'#fef3f2':pct<0.25?'#fef3f2':pct<0.5?'#fdf8ed':pct<0.75?'#eafaf1':'#ebf5fb';})()}">
       <div class="stat-label" style="color:#2980b9">🧊 Lunch Bank</div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
@@ -1136,12 +1136,12 @@ function rEmergency(){
       <div style="font-size:36px">${total>=6?'✅':total>=4?'⚠️':'🚨'}</div>
     </div>
     <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .3s"></div></div>
-    <div style="font-size:12px;color:var(--text-muted);margin-top:8px">${total>=MAGIC?'You are stocked. Eat oldest first.':total>0?`Build ${needed} more to reach your safety net of 6.`:'Emergency supply is empty. Build 6 meals to start your safety net.'}</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:8px">${total>=MAGIC?'You are stocked. Eat oldest first.':total>0?`Build ${needed} more to reach 6 emergency meals per week.`:'Emergency supply is empty. Build 6 emergency meals per week to start.'}</div>
   </div>
   ${A.grocery.filter(g=>!g.scheduledDate&&!g.done).length>0?`<div style="font-size:11px;color:#888;background:#fafafa;border:1px solid #eee;border-radius:6px;padding:8px 10px;margin-bottom:10px">
     💡 Items without a scheduled date show only in This Month. Tap <strong>Clear All</strong> and re-place your calendar meals so all items filter correctly by week.
   </div>`:''}
-  <div class="alert alert-gold" style="margin-bottom:16px"><span>📏</span><div>Emergency Meals = <strong>GALLON bags</strong> only. Fully cooked, portioned, ready to heat. Always build 2 of the same meal per batch. Magic number is 6.</div></div>
+  <div class="alert alert-gold" style="margin-bottom:16px"><span>📏</span><div>Emergency Meals = <strong>GALLON bags</strong> only. Fully cooked, portioned, ready to heat. Always build 2 of the same meal per batch. Magic number = 6 emergency meals per week.</div></div>
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
     <div class="page-title" style="font-size:18px">Emergency Meal Log</div>
     <button class="btn btn-primary btn-sm" onclick="openAddEmergency()">+ Log Meal</button>
@@ -1312,7 +1312,7 @@ function rBuilderForm(){
     <div>
       <div class="card card-pad" style="margin-bottom:16px">
         <div style="font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;margin-bottom:14px">Build Your Meal</div>
-        ${emergencyCount<6?`<div class="alert alert-red" style="margin-bottom:12px"><span>🚨</span><div>${emergencyCount} emergency meal${emergencyCount!==1?'s':''} — build ${6-emergencyCount} more to reach 6</div></div>`:''}
+        ${emergencyCount<6?`<div class="alert alert-red" style="margin-bottom:12px"><span>🚨</span><div>${emergencyCount} emergency meal${emergencyCount!==1?'s':''} — build ${6-emergencyCount} more to reach 6 per week</div></div>`:''}
         ${A.buildEmergency?`<div class="alert alert-red" style="margin-bottom:12px"><span>🚨</span><div><strong>Emergency Meal Mode ON</strong> — The meal builder will create a complete double-batch meal for 2 gallon bags. Inventory deducts for both batches. You will be prompted to log it when scheduled.</div></div>`:''}
 
         ${proteinSection}
@@ -3813,7 +3813,7 @@ function rGuide(){
       <div style="font-size:22px;flex-shrink:0">🚨</div>
       <div>
         <div style="font-size:14px;font-weight:700;margin-bottom:4px">Emergency Layer</div>
-        <div style="font-size:13px;color:var(--text-muted);line-height:1.5">Your safety net — <strong>6 fully assembled meals</strong> in gallon bags or 9x13 pans. Pull one on a hard night, heat from frozen, done. Zero thinking required.<br><br>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.5">Your safety net — <strong>6 fully assembled meals per week</strong> in gallon bags or 9x13 pans. Pull one on a hard night, heat from frozen, done. Zero thinking required.<br><br>
 <strong>Two ways to build:</strong><br>
 <strong>1. Emergency Mode toggle</strong> — Flip it on in the builder. The entire batch goes to the freezer tonight — nothing gets served. The recipe scales to a double batch. Use this for dedicated freezer cook sessions.<br><br>
 <strong>2. Log a dinner as emergency</strong> — Build any dinner normally, then on the result screen tap <strong>🚨 Log as Emergency Meal Instead</strong>. Pick how many gallon bags you're freezing. The meal skips the calendar and goes straight to your emergency supply. Use this when you cook a big batch and want to freeze some for later.<br><br>
@@ -3911,7 +3911,7 @@ Print the recipe to see everything you need — check off what you have, pick up
       <strong>1 quart bag protein</strong> = 1.5 lbs cooked<br>
       <strong>1 quart bag vegetables</strong> = 3 cups<br>
       <strong>Emergency meals</strong> = gallon bags or 9x13 pans<br>
-      <strong>Magic number</strong> = 6 emergency meals<br>
+      <strong>Magic number</strong> = 6 emergency meals per week<br>
       <strong>Frozen protein</strong> = already cooked, just heat through<br>
       <strong>Home canned jars</strong> = pull by jar count, not cups<br>
       <strong>Freeze dried</strong> = measure out what you need from the jar<br>
@@ -4169,7 +4169,7 @@ function printBlankInventory(){
   const html=`<html><head><title>Prep & Purpose — Inventory Sheet</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,serif;background:#fff;color:#1a1a1a;padding:22px 26px;max-width:800px;margin:0 auto;font-size:13px}.hdr{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #1e4d35;padding-bottom:8px;margin-bottom:6px}.hdr-b{font-size:18px;font-weight:700;color:#1e4d35}.sub{font-size:10px;color:#888;margin-bottom:12px}.rule-box{background:#f0faf2;border:1px solid #d8f3dc;border-radius:6px;padding:8px 12px;font-size:11px;color:#1e4d35;margin-bottom:14px;line-height:1.7}.sec{font-size:13px;font-weight:700;color:#1e4d35;margin:14px 0 5px;border-left:4px solid #1e4d35;padding-left:8px}table{width:100%;border-collapse:collapse}th{font-size:10px;font-weight:700;text-transform:uppercase;color:#888;padding:5px 8px;text-align:left;border-bottom:2px solid #1e4d35}.col2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}.ftr{margin-top:20px;border-top:1px solid #eee;padding-top:8px;font-size:10px;color:#bbb;text-align:center}@media print{body{padding:14px}}</style></head><body>
   <div class="hdr"><div class="hdr-b">🌿 Prep & Purpose — Inventory Sheet</div><div style="font-size:11px;color:#888">Week of: ___________________________</div></div>
   <div class="sub">Count every bag — in the freezer AND thawed in the fridge. Both count. Fill out before entering into Meal Builder Pro.</div>
-  <div class="rule-box">📏 1 quart bag = 1.5 lbs cooked protein &nbsp;·&nbsp; 1 quart bag = 3 cups cooked veg or grains &nbsp;·&nbsp; Emergency meals = GALLON bags only &nbsp;·&nbsp; Magic number = 6</div>
+  <div class="rule-box">📏 1 quart bag = 1.5 lbs cooked protein &nbsp;·&nbsp; 1 quart bag = 3 cups cooked veg or grains &nbsp;·&nbsp; Emergency meals = GALLON bags only &nbsp;·&nbsp; Magic number = 6 emergency meals per week</div>
 
   <div class="sec">🥩 Layer 2 — Protein Bases (cooked, lightly seasoned)</div>
   <table><thead><tr><th>Protein</th><th>Quart Bags</th><th>Canned / Jars</th></tr></thead><tbody>
