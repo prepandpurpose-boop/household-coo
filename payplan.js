@@ -23,6 +23,7 @@
     if (!state.spend || typeof state.spend !== 'object') state.spend = { merchants: {} };
     if (!state.spend.merchants) state.spend.merchants = {};
     if (state.tithePct == null) state.tithePct = 10;
+    if (state.savePerCheck == null) state.savePerCheck = 5;
     if (!state.ppDone) state.ppDone = {};
   }
   // Turn statement lines (date|description|amount[|account]) into totals per merchant per month.
@@ -108,6 +109,17 @@
     return out;
   }
 
+  function wallAvg(cat) {
+    const ms = (state.spend && state.spend.merchants) || {}, all = new Set(); let tot = 0;
+    Object.keys(ms).forEach(k => Object.keys(ms[k].months || {}).forEach(mk => { all.add(mk.split('|')[0]); if (ms[k].cat === cat) tot += -ms[k].months[mk]; }));
+    return all.size ? Math.max(0, Math.round(tot / all.size)) : 0;
+  }
+  function checksPerMonth() {
+    const f = r => r.freq === 'weekly' ? 52 / 12 : r.freq === 'biweekly' ? 26 / 12 : 1;
+    const rows = state.income.filter(r => (+r.amount || 0) > 0);
+    const prim = rows.filter(r => r.type !== 'Secondary/Side-Hustle');
+    return (prim.length ? prim : rows).reduce((t, r) => t + f(r), 0);
+  }
   const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'));
   function stepsFor(c, next, M) {
     // Every check puts aside its own share of every monthly bill, so a bill is covered whenever its due date arrives.
@@ -121,19 +133,33 @@
     const exps = live.filter(o => o.kind === 'expense');
     const line = (g, o) => ({ g, id: 'b:' + o.category, label: o.category, amt: (+o.cost || 0) * share, note: (+o.due >= 1 ? 'Due on the ' + ord(+o.due) : 'No set date') + '. Month total ' + money0(+o.cost || 0) + '.' });
     walls.forEach(o => steps.push(line('Your Four Walls', o)));
+    [['Shelter (Wall 1)', 'Shelter: rent or mortgage'], ['Food (Wall 2)', 'Food: groceries'], ['Utilities (Wall 3)', 'Utilities'], ['Transportation (Wall 4)', 'Transportation: car, gas']].forEach(w => {
+      if (walls.some(o => o.tier === w[0])) return;
+      const est = wallAvg(w[0]);
+      steps.push({ g: 'Your Four Walls', id: 'w:' + w[0], label: w[1], amt: est * share, note: est > 0 ? 'Filled in from your statements: about ' + money0(est) + ' a month. Add it on Treasury to make it official.' : 'Not entered yet. Add it on Treasury, or read your statements on Import, and it fills in here.' });
+    });
     exps.forEach(o => steps.push(line('Other recurring expenses', o)));
+    const keep = steps.length;
     const G = 'Savings and goals';
     const p = emergencyPlan();
     if (!p.full && p.efMonthly > 0) steps.push({ g: G, id: 'ef', label: 'Emergency Fund', amt: p.efMonthly * share, note: 'Move to savings.' });
+    const sv = +state.savePerCheck || 0;
+    if (sv > 0) steps.push({ g: G, id: 'save', label: 'Savings', amt: c.monthly ? sv * checksPerMonth() : sv, note: 'Move to savings, on top of the Emergency Fund. Even a small amount counts.' });
     const extra = +state.debtExtra || 0;
     if (extra > 0) steps.push({ g: G, id: 'debt', label: 'Extra debt payment', amt: extra * share, note: 'On top of minimums.' });
-    (state.goals.sinking || []).forEach(g => { const mo = monthsUntil(g.due); const need = mo ? Math.max(0, (+g.target || 0) - (+g.saved || 0)) / mo : 0; if (need > 0) steps.push({ g: G, id: 'sk:' + g.name, label: (g.name || 'Sinking fund') + ' (sinking fund)', amt: need * share, note: 'Move to this fund.' }); });
     (state.goals.savings || []).forEach(g => { if (!g.date) return; const mo = monthsUntil(g.date); const need = mo ? Math.max(0, (+g.target || 0) - (+g.saved || 0)) / mo : 0; if (need > 0) steps.push({ g: G, id: 'sv:' + g.name, label: (g.name || 'Savings goal') + ' (savings goal)', amt: need * share, note: 'Move to this goal.' }); });
+    (state.goals.sinking || []).forEach(g => { const mo = monthsUntil(g.due); const need = mo ? Math.max(0, (+g.target || 0) - (+g.saved || 0)) / mo : 0; if (need > 0) steps.push({ g: G, id: 'sk:' + g.name, label: (g.name || 'Sinking fund') + ' (sinking fund)', amt: need * share, note: 'Move to this fund.' }); });
+    // Tithe, Four Walls and bills come first. If money runs out, trim from the bottom of the list (sinking funds first).
+    let over = steps.reduce((t, x) => t + Math.round(x.amt), 0) - Math.round(c.amt);
+    for (let i = steps.length - 1; i >= keep && over > 0; i--) {
+      const x = steps[i], cut = Math.min(Math.round(x.amt), over);
+      if (cut > 0) { x.amt -= cut; over -= cut; x.note = (x.amt < 0.5 ? 'Skipped this check. ' : 'Reduced this check. ') + 'Your Four Walls and bills come first.'; }
+    }
     return steps;
   }
 
   function monthPicture(M) {
-    const steps = stepsFor({ planned: M, amt: M }, null, M);
+    const steps = stepsFor({ planned: M, amt: M, monthly: true }, null, M);
     const order = ['First', 'Your Four Walls', 'Other recurring expenses', 'Savings and goals'];
     const FN = { weekly: 'every week', biweekly: 'every 2 weeks', monthly: 'every month' };
     const inc = state.income.filter(r => (+r.amount || 0) > 0).map(r => '<div class="ppstep"><span class="t">' + E(r.source || 'Income') + ' <span class="n">' + money0(+r.amount) + ' ' + (FN[r.freq || 'monthly'] || '') + '</span></span><span class="a">' + money0(monthlyEquivalent(r)) + '</span></div>').join('');
@@ -154,8 +180,8 @@
     ensure();
     const M = calc().income;
     const cs = upcomingChecks();
-    const titheCard = '<div class="card"><div class="card-note" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><strong>Tithe</strong> <span>Plan to give</span> <input id="ppTithe" type="number" min="0" max="100" step="0.5" value="' + E(state.tithePct) + '" style="width:80px"> <span>% of every paycheck. It is the first step on every check below.</span></div></div>';
-    const bindTithe = () => { const ti = document.getElementById('ppTithe'); if (ti) ti.onchange = () => { state.tithePct = Math.max(0, Math.min(100, parseFloat(ti.value) || 0)); save(); renderPayPlan(); }; };
+    const titheCard = '<div class="card"><div class="card-note" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><strong>Tithe</strong> <span>Plan to give</span> <input id="ppTithe" type="number" min="0" max="100" step="0.5" value="' + E(state.tithePct) + '" style="width:80px"> <span>% of every paycheck. It is the first step on every check below.</span></div><div class="card-note" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px"><strong>Savings</strong> <span>Put at least $</span> <input id="ppSave" type="number" min="0" step="1" value="' + E(state.savePerCheck) + '" style="width:80px"> <span>from every paycheck into savings, on top of the Emergency Fund. Even $5 counts.</span></div></div>';
+    const bindTithe = () => { const sv = document.getElementById('ppSave'); if (sv) sv.onchange = () => { state.savePerCheck = Math.max(0, parseFloat(sv.value) || 0); save(); renderPayPlan(); }; const ti = document.getElementById('ppTithe'); if (ti) ti.onchange = () => { state.tithePct = Math.max(0, Math.min(100, parseFloat(ti.value) || 0)); save(); renderPayPlan(); }; };
     if (!state.income.length || M <= 0 || !cs.length) {
       ppSec.innerHTML = '<div class="section-head"><h2>Pay Plan</h2></div>' + titheCard + '<div class="card"><div class="card-note">Add your income on the Treasury tab (what each check is, how often, and one real payday). Then this page tells you exactly what to do with every check.</div></div>';
       bindTithe();
