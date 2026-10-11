@@ -61,7 +61,7 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
-<script src="calendar.js?v=2"></script>
+<script src="calendar.js?v=3"></script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -120,7 +120,7 @@ async function load(){
   await loadMoney();
   try{await loadCal()}catch(e){console.warn(e)}
   if(!S.me.display_name){const n=prompt('What name should the household see for you?');if(n){await sb.rpc('set_my_name',{n});S.me.display_name=n;const i=S.members.findIndex(x=>x.user_id===S.user.id);if(i>=0)S.members[i].display_name=n}}
-  S.page=S.me.role==='kid'?'tasks':'home';
+  S.page=S.me.role==='kid'?'tasks':'cal';
   shell();
 }
 async function loadKitchen(){
@@ -187,9 +187,8 @@ async function loadTasks(){
 function navItems(){
   const kid=S.me.role==='kid', staff=['helper','staff'].includes(S.me.role);
   if(kid||staff) return [['tasks','My tasks'],['cal','Command Center']].concat(kid?[['add','Add what I need'],['dinner','Dinner']]:[]);
-  const n=[['home','Home'],['cal','Command Center'],['k:dashboard','Kitchen']];
+  const n=[['cal','Command Center'],['k:dashboard','Kitchen']];
   if(seesMoney())n.push(['money','Money']);
-  n.push(['tasks','Tasks']);
   return n;
 }
 function shell(){
@@ -217,7 +216,7 @@ function render(){
     });
   }
   else if(S.page==='money'&&seesMoney()) m.innerHTML='<iframe id="mframe" src="money.html?v='+Date.now()+'" title="Money"></iframe>';
-  else if(S.page==='cal') m.innerHTML=calView();
+  else if(S.page==='cal'||S.page==='home') m.innerHTML=calView()+openList();
   else if(S.page==='tasks'||S.page==='home') m.innerHTML=tasksView(S.page==='home');
   else if(S.page==='add') m.innerHTML=addView();
   else m.innerHTML=soon(S.page);
@@ -248,6 +247,7 @@ function tasksView(home){
   ${home&&typeof calToday==='function'?calToday():''}${add}<div class="card"><h2>Open · ${open.length}</h2>${open.map(row).join('')||'<p class="note">Nothing open.</p>'}
   ${done.length?`<h2 style="margin-top:18px">Done · ${done.length}</h2>${done.map(row).join('')}`:''}</div>`;
 }
+function openList(){ const h=tasksView(false); const i=h.indexOf('<div class="card"><h2>Open'); return i<0?'':'<div style="margin-top:18px">'+h.slice(i)+'</div>'; }
 function addView(){
   return `<div class="eyebrow">Add</div><h1>What do you need?</h1><div class="rule"></div>
   <div class="card"><label for="tt">For school or the grocery list</label><input id="tt"><div style="margin-top:14px"><button class="btn" id="addt">Add</button></div></div>`;
