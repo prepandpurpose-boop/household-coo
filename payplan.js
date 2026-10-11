@@ -143,8 +143,11 @@
     ensure();
     const M = calc().income;
     const cs = upcomingChecks();
+    const titheCard = '<div class="card"><div class="card-note" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><strong>Tithe</strong> <span>Plan to give</span> <input id="ppTithe" type="number" min="0" max="100" step="0.5" value="' + E(state.tithePct) + '" style="width:80px"> <span>% of every paycheck. It is the first step on every check below.</span></div></div>';
+    const bindTithe = () => { const ti = document.getElementById('ppTithe'); if (ti) ti.onchange = () => { state.tithePct = Math.max(0, Math.min(100, parseFloat(ti.value) || 0)); save(); renderPayPlan(); }; };
     if (!state.income.length || M <= 0 || !cs.length) {
-      ppSec.innerHTML = '<div class="section-head"><h2>Pay Plan</h2></div><div class="card"><div class="card-note">Add your income on the Treasury tab (what each check is, how often, and one real payday). Then this page tells you exactly what to do with every check.</div></div>';
+      ppSec.innerHTML = '<div class="section-head"><h2>Pay Plan</h2></div>' + titheCard + '<div class="card"><div class="card-note">Add your income on the Treasury tab (what each check is, how often, and one real payday). Then this page tells you exactly what to do with every check.</div></div>';
+      bindTithe();
       return;
     }
     const show = cs.slice(0, 3);
@@ -168,9 +171,8 @@
         '</div>';
     }).join('');
     ppSec.innerHTML = '<div class="section-head"><h2>Pay Plan</h2><div class="sub">What to do with each paycheck, in order. It is built from your Treasury bills, sinking funds, savings goals, Emergency Fund, and extra debt payment. Add or change any of them and this page updates.</div></div>' +
-      '<div class="card"><div class="card-note" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><strong>Tithe</strong> <span>Plan to give</span> <input id="ppTithe" type="number" min="0" max="100" step="0.5" value="' + E(state.tithePct) + '" style="width:80px"> <span>% of every paycheck.</span></div></div>' + cards;
-    const ti = document.getElementById('ppTithe');
-    if (ti) ti.onchange = () => { state.tithePct = Math.max(0, Math.min(100, parseFloat(ti.value) || 0)); save(); renderPayPlan(); };
+      titheCard + cards;
+    bindTithe();
     ppSec.querySelectorAll('input[type=checkbox][data-k]').forEach(cb => cb.onchange = () => { if (cb.checked) state.ppDone[cb.dataset.k] = true; else delete state.ppDone[cb.dataset.k]; save(false); renderPayPlan(); });
   }
 
