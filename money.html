@@ -318,6 +318,7 @@
     <button class="tab" data-panel="maintenance"><span class="ic">🛠️</span>Maintenance</button>
     <button class="tab" data-panel="playbooks"><span class="ic">🛡️</span>Playbooks</button>
     <button class="tab" data-panel="vault"><span class="ic">🔒</span>Vault</button>
+    <button class="tab" data-panel="import"><span class="ic">📥</span>Import</button>
     <button class="tab" data-panel="howto"><span class="ic">❓</span>How To</button>
   </div>
 </nav>
@@ -735,6 +736,7 @@
       <p style="margin-top:10px">Use <strong>🖨 Print calendar</strong> (on the Calendar tab) for a paper copy of the month, or <strong>🖨 Print / Save as PDF</strong> (bottom toolbar) for your full financial plan. Use <strong>⤓ Back up my data</strong> regularly — everything here lives only in this browser, on this device, so a backup file is the only way to move your data or protect it from a cleared browser.</p>
     </div>
   </section>
+  <section class="panel" id="import"></section>
 </main>
 <div class="wrap">
   <div class="toolbar">
@@ -1906,5 +1908,6 @@ window.addEventListener('message',e=>{
 });
 try{parent.postMessage({type:'money-ready'},location.origin);}catch(e){}
 </script>
+<script src="import.js"></script>
 </body>
 </html>
