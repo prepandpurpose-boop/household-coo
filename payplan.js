@@ -179,6 +179,63 @@
       rows +
       '<div class="ppfree' + (free < 0 ? ' neg' : '') + '"><span>' + (free < 0 ? 'Short by this amount' : 'Left over for everyday spending') + '</span><span>' + money0(Math.abs(free) * 12 / 52) + ' a week · ' + money0(Math.abs(free)) + ' a month</span></div></div>';
   }
+  function weeksList(n) {
+    const t = today0(), st = addDays(t, -((t.getDay() + 6) % 7)), en = addDays(st, n * 7), ws = [];
+    for (let i = 0; i < n; i++) ws.push({ i, start: addDays(st, i * 7), end: addDays(st, i * 7 + 6), checks: [] });
+    state.income.forEach((r, ri) => {
+      if (!r.anchor) return;
+      genPaydays(r, st, en).forEach(d => {
+        const idx = Math.floor(((d - st) / 86400000 + 0.5) / 7), key = dISO(d), planned = +r.amount || 0;
+        const actual = (r.actuals && r.actuals[key] != null) ? +r.actuals[key] : null;
+        if (ws[idx]) ws[idx].checks.push({ ri, key, name: r.source || 'Pay', planned, actual });
+      });
+    });
+    return ws;
+  }
+  function setWeek(i, mode, val) {
+    const w = weeksList(4)[i]; if (!w) return;
+    const sum = w.checks.reduce((t, c) => t + c.planned, 0);
+    w.checks.forEach(c => {
+      const r = state.income[c.ri]; if (!r.actuals) r.actuals = {};
+      if (mode === 'reset') delete r.actuals[c.key];
+      else if (mode === 'came') r.actuals[c.key] = c.planned;
+      else if (mode === 'none') r.actuals[c.key] = 0;
+      else r.actuals[c.key] = sum > 0 ? Math.round(val * c.planned / sum * 100) / 100 : 0;
+    });
+    save(); renderPayPlan();
+  }
+  function bindWeeks() {
+    ppSec.querySelectorAll('button[data-wk]').forEach(b => b.onclick = () => setWeek(+b.dataset.i, b.dataset.wk));
+    ppSec.querySelectorAll('input[data-wk=amt]').forEach(el => el.onchange = () => { if (el.value === '') setWeek(+el.dataset.i, 'reset'); else setWeek(+el.dataset.i, 'amt', parseFloat(el.value) || 0); });
+  }
+  function renderWeeks(M) {
+    const GNOTE = { 'Your Four Walls': 'Move this money into the account you pay bills from.', 'Other recurring expenses': 'Same account.' };
+    const html = weeksList(4).map(w => {
+      const has = w.checks.length > 0;
+      const planned = w.checks.reduce((t, c) => t + c.planned, 0);
+      const amt = w.checks.reduce((t, c) => t + (c.actual != null ? c.actual : c.planned), 0);
+      const conf = has && w.checks.every(c => c.actual != null);
+      const status = !has ? 'No pay expected' : conf ? (amt === 0 ? 'Did not come in' : 'Came in: ' + money0(amt)) : 'Waiting for pay';
+      let body = '';
+      if (has) {
+        body += '<div class="card-note" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0"><button class="btn btn-sm" data-wk="came" data-i="' + w.i + '">It came in</button><button class="btn btn-ghost btn-sm" data-wk="none" data-i="' + w.i + '">It did not come in</button><span>or I got $</span><input type="number" min="0" step="0.01" data-wk="amt" data-i="' + w.i + '" value="' + (conf ? E(amt) : '') + '" placeholder="' + Math.round(planned) + '" style="width:100px">' + (w.checks.some(c => c.actual != null) ? '<button class="btn btn-ghost btn-sm" data-wk="reset" data-i="' + w.i + '">Undo</button>' : '') + '</div>';
+        body += '<div class="card-note">' + w.checks.map(c => E(c.name) + ' ' + money0(c.planned)).join(' + ') + '</div>';
+        if (amt > 0) {
+          const steps = stepsFor({ planned, amt, key: dISO(w.start) }, null, M);
+          const used = steps.reduce((t, s) => t + Math.round(s.amt), 0), free = Math.round(amt) - used;
+          let lastG = '';
+          body += steps.map((s, n) => {
+            const k = 'w|' + dISO(w.start) + '|' + s.id, done = !!state.ppDone[k];
+            const head = s.g !== lastG ? '<div style="margin:12px 0 2px;font-weight:700;color:var(--green)">' + E(s.g) + '</div>' + (GNOTE[s.g] ? '<div class="card-note" style="margin:0 0 4px">' + E(GNOTE[s.g]) + '</div>' : '') : '';
+            lastG = s.g;
+            return head + '<div class="ppstep' + (done ? ' done' : '') + '"><label><input type="checkbox" data-k="' + E(k) + '" ' + (done ? 'checked' : '') + '><span class="t">' + (n + 1) + '. ' + E(s.label) + ' <span class="n">' + E(s.note || '') + '</span></span></label><span class="a">' + money0(s.amt) + '</span></div>';
+          }).join('') + '<div class="ppfree' + (free < 0 ? ' neg' : '') + '"><span>' + (free < 0 ? 'Short by this amount' : 'Left for everyday spending this week') + '</span><span>' + money0(Math.abs(free)) + '</span></div>';
+        } else if (conf) body += '<div class="card-note">No pay this week, so nothing to set aside.</div>';
+      }
+      return '<div class="card"><details' + (w.i === 0 ? ' open' : '') + '><summary style="cursor:pointer"><span class="card-title">Week ' + (w.i + 1) + ': ' + fmtD(w.start) + ' to ' + fmtD(w.end) + '</span> <span class="badge">' + E(status) + '</span> <strong style="float:right">' + (has ? money0(conf ? amt : planned) : '') + '</strong></summary>' + body + '</details></div>';
+    }).join('');
+    return '<div class="card"><div class="card-title">Your pay, week by week</div><div class="card-note">Each week adds up all the pay you expect that week, from every income line. When pay lands, tap It came in, or type what you really got. Tithe and your Four Walls come first, then everything else, and the bottom of the list is cut first if money is short.</div></div>' + html;
+  }
   function actualBox(c) {
     return '<div class="card-note" style="margin:8px 0">' + c.parts.map(p => '<div style="margin:4px 0">' + E(p.name) + ': planned ' + money0(p.planned) + '. I actually got $ <input type="number" min="0" step="0.01" data-act="' + p.ri + '|' + p.key + '" value="' + (p.actual != null ? p.actual : '') + '" placeholder="' + Math.round(p.planned) + '" style="width:110px"></div>').join('') + '<div>Leave it empty if it matches the plan. Type the real amount when your pay lands and this check recalculates.</div></div>';
   }
@@ -220,8 +277,9 @@
         '</div>';
     }).join('');
     ppSec.innerHTML = '<div class="section-head"><h2>Pay Plan</h2><div class="sub">What to do with each paycheck, in order. It is built from your Treasury bills, sinking funds, savings goals, Emergency Fund, and extra debt payment. Add or change any of them and this page updates.</div></div>' +
-      titheCard + monthPicture(M);
+      titheCard + renderWeeks(M);
     bindTithe();
+    bindWeeks();
     ppSec.querySelectorAll('input[data-act]').forEach(el => el.onchange = () => { const a = el.dataset.act.split('|'), r = state.income[+a[0]]; if (!r) return; if (!r.actuals) r.actuals = {}; if (el.value === '') delete r.actuals[a[1]]; else r.actuals[a[1]] = parseFloat(el.value) || 0; save(); renderPayPlan(); });
     ppSec.querySelectorAll('input[type=checkbox][data-k]').forEach(cb => cb.onchange = () => { if (cb.checked) state.ppDone[cb.dataset.k] = true; else delete state.ppDone[cb.dataset.k]; save(false); renderPayPlan(); });
   }
