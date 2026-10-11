@@ -153,14 +153,14 @@ window.addEventListener('message',e=>{
     try{
       const w=f.contentWindow, of=w.fetch.bind(w);
       w.fetch=async(u,o)=>{
-        if(String(u).includes('/api/generate')){
+        if(String(u).includes('/api/generate')||String(u).includes('/api/receipt')){
           const {data:{session}}=await sb.auth.getSession();
           o={...o,headers:{...(o&&o.headers),Authorization:'Bearer '+(session?session.access_token:'')}};
         }
         return of(u,o);
       };
     }catch(err){console.warn(err)}
-    f.contentWindow.postMessage({type:'kitchen-init',data:S.kdata,email:S.user.email,page:S.page.slice(2)},location.origin);
+    f.contentWindow.postMessage({type:'kitchen-init',data:S.kdata,email:S.user.email,page:S.page.slice(2),money:!!seesMoney(),spend:grocSpend()},location.origin);
   }else if(m.type==='kitchen-save'){ saveKitchen(m.data); }
   else if(m.type==='money-ready'){
     const mf=document.getElementById('mframe');
@@ -177,8 +177,21 @@ window.addEventListener('message',e=>{
       }catch(err){console.warn(err)}
       mf.contentWindow.postMessage({type:'money-init',data:S.mdata},location.origin);
     }
-  }else if(m.type==='money-save'){ saveMoney(m.data); }
+  }else if(m.type==='receipt-spend'){
+    if(seesMoney()&&S.mdata){
+      S.mdata.groceryReceipts=(S.mdata.groceryReceipts||[]).concat([{date:String(m.date||'').slice(0,10),store:String(m.store||'').slice(0,60),total:+m.total||0}]).slice(-200);
+      saveMoney(S.mdata);
+      const kf=document.getElementById('kframe'); if(kf&&kf.contentWindow)kf.contentWindow.postMessage({type:'kitchen-spend',spend:grocSpend()},location.origin);
+    }
+  }
+  else if(m.type==='money-save'){ if(S.mdata&&S.mdata.groceryReceipts&&m.data&&!m.data.groceryReceipts)m.data.groceryReceipts=S.mdata.groceryReceipts; saveMoney(m.data); }
 });
+function grocSpend(){
+  if(!seesMoney()||!S.mdata)return null;
+  const n=new Date(),ym=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');
+  const l=(S.mdata.groceryReceipts||[]).filter(r=>String(r.date).slice(0,7)===ym);
+  return {total:l.reduce((t,r)=>t+(+r.total||0),0),count:l.length};
+}
 async function loadTasks(){
   const {data}=await sb.from('tasks').select('*').eq('household_id',S.me.household_id).order('created_at',{ascending:true});
   S.tasks=data||[];
