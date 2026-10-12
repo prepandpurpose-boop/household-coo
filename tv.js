@@ -5,6 +5,7 @@
   const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   let timer = null, clock = null;
+const TVN = [];
 
   const CSS = '<style>' +
     'body{background:#14213d}' +
@@ -25,16 +26,19 @@
     '#tv .none{opacity:.5;font-size:clamp(13px,1.9vh,22px)}' +
     '#tv .x{position:fixed;right:10px;top:8px;background:transparent;border:0;color:#fff;opacity:.15;font-size:22px;cursor:pointer}' +
     '#tv .x:hover{opacity:.9}' +
+'#tv .tvc{cursor:pointer;border-radius:8px}' +
+'#tv .tvc:focus{outline:4px solid #C59B27;outline-offset:2px}' +
+'#tv .more{opacity:.7;font-size:.8em}' +
     '</style>';
 
   function html() {
     const now = new Date();
-    let cols = '';
+    let cols = ''; TVN.length = 0;
     for (let i = 0; i < 7; i++) {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i), ds = iso(d);
       const r = (typeof cooDay === 'function') ? cooDay(ds) : { items: [], meals: [] };
-      const meals = r.meals.map(x => '<div class="ml"><b>' + esc(x.slot[0].toUpperCase()) + '</b>' + esc(x.m.title || 'Meal') + '</div>').join('');
-      const items = r.items.map(x => '<div class="it' + (x.done ? ' done' : '') + '">' + esc(x.title) + '</div>').join('');
+      const meals = r.meals.map(x => '<div class="ml tvc" tabindex="0" data-slot="' + x.slot + '" data-day="' + ds + '"><b>' + esc(x.slot[0].toUpperCase()) + '</b>' + esc(x.m.title || 'Meal') + (x.m.steps && x.m.steps.length ? ' <span class="more">&#9656; recipe</span>' : '') + '</div>').join('');
+      const items = r.items.map(x => { TVN.push({ it: x, ds }); return '<div class="it tvc' + (x.done ? ' done' : '') + '" tabindex="0" data-tn="' + (TVN.length - 1) + '">' + esc(x.title) + (x.notes ? ' <span class="more">&#9656; how to</span>' : '') + '</div>'; }).join('');
       cols += '<div class="day' + (i === 0 ? ' today' : '') + '"><div class="dh">' + (i === 0 ? 'Today' : DAYS[d.getDay()]) + '<span>' + (d.getMonth() + 1) + '/' + d.getDate() + '</span></div>' +
         meals + items + (!meals && !items ? '<div class="none">Nothing planned</div>' : '') + '</div>';
     }
@@ -50,6 +54,10 @@
   function draw() {
     document.getElementById('root').innerHTML = html();
     document.getElementById('tvx').onclick = stop;
+document.querySelectorAll('#tv .tvc').forEach(el => {
+el.onclick = () => { if (el.dataset.tn !== undefined) { const q = TVN[+el.dataset.tn]; if (q && window.cooItem) cooItem(q.it, q.ds); } else if (window.cooRecipe) cooRecipe(el.dataset.day, el.dataset.slot); };
+el.onkeydown = e => { if (e.key === 'Enter') el.click(); };
+});
     tick();
   }
   function stop() {
@@ -59,10 +67,11 @@
   }
   async function refresh() {
     try { await loadTasks(); await loadKitchen(); await loadCal(); } catch (e) { console.warn(e); }
-    if (S.tv) draw();
+    if (S.tv && !document.getElementById('coo-ov')) draw();
   }
   window.tvStart = function () {
     S.tv = true; draw();
+const f0 = document.querySelector('#tv .tvc'); if (f0) f0.focus();
     clearInterval(timer); clearInterval(clock);
     timer = setInterval(refresh, 60000);
     clock = setInterval(tick, 15000);
