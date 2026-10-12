@@ -24,7 +24,7 @@
   window.kmView = function () {
     if (!S.km) { loadKm().then(() => { if (S.page === 'km') render(); }); return '<div class="eyebrow">Money</div><h1>Loading.</h1>'; }
     const kids = mgr() ? kidsList() : [S.me];
-    if (!kids.length) return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>Kids\' money.</h1><div class="rule"></div><div class="card"><p class="note">No kids have been added to the household yet.</p></div>';
+    if (!kids.length) return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>Household members\' money.</h1><div class="rule"></div><div class="card"><p class="note">No household members have been added yet.</p></div>';
     if (!S.kmSel || !kids.find(x => x.user_id === S.kmSel)) S.kmSel = kids[0].user_id;
     const id = S.kmSel, r = rec(id);
     const bal = r.entries.reduce((t, e) => t + (+e.amt || 0), 0);
@@ -42,7 +42,7 @@
       '<label for="km_al">Weekly allowance</label><input id="km_al" type="number" min="0" step="0.01" value="' + (+r.allowance || '') + '">' +
       '<div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn ghost" id="km_als">Save amount</button>' + (+r.allowance > 0 ? '<button class="btn" id="km_ala">Add this week\'s ' + money(r.allowance) + '</button>' : '') + '</div></div>';
     const list = r.entries.slice().reverse().slice(0, 30).map(e => '<div class="row"><div style="flex:1"><div style="font-weight:600">' + esc(e.note || (e.amt < 0 ? 'Spent' : 'Money in')) + '</div><div class="note">' + esc(e.date) + '</div></div><div style="font-weight:600;color:' + (e.amt < 0 ? '#a33' : '#2f8f4e') + '">' + money(e.amt) + '</div>' + (mgr() ? '<button class="btn ghost" style="min-height:32px;padding:0 10px" data-kmrm="' + e.id + '" aria-label="Remove">&#10005;</button>' : '') + '</div>').join('');
-    return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>' + (mgr() ? 'Kids\' money.' : 'My money.') + '</h1><div class="rule"></div>' + tabs +
+    return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>' + (mgr() ? 'Household members\' money.' : 'My money.') + '</h1><div class="rule"></div>' + tabs +
       '<div class="card"><div class="note">' + (mgr() ? esc(nm(id)) + ' has' : 'I have') + '</div><div style="font-family:\'Cormorant Garamond\',serif;font-size:52px;font-weight:700;color:var(--navy)">' + money(bal) + '</div></div>' +
       goal + form + allow + '<div class="card" style="margin-top:18px"><h2>What happened</h2>' + (list || '<p class="note">Nothing yet.</p>') + '</div>';
   };
