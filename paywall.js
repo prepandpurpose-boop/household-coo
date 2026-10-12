@@ -1,7 +1,7 @@
 // Household COO: subscription gate. A household needs an active plan to use the app.
 (function () {
-  const MONTHLY = 'https://buy.stripe.com/bJe8wOgEndb8abR7S2ffy02';
-  const YEARLY = 'https://buy.stripe.com/cNi8wO87Rgnkfwb0pAffy03';
+  const MONTHLY = 'https://buy.stripe.com/test_4gM00i2Nx1sqdo34FQffy00';
+  const YEARLY = 'https://buy.stripe.com/test_cNi14mewfb3083J2xIffy01';
   // active and trialing are paid. comped is a household we gave free access. past_due gets a grace period while the card is fixed.
   const OK = ['active', 'trialing', 'comped', 'past_due', 'unknown'];
   let poll = null;
