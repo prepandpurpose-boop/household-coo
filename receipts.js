@@ -55,7 +55,7 @@
     return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>Receipts.</h1><div class="rule"></div>' +
       '<div class="card"><h2>Scan a receipt</h2>' +
       '<p style="margin:8px 0">Take one clear picture of the whole receipt. I read each item and its price and sort every line into a spending category, like groceries or fuel. You check it and fix anything before it is saved.</p>' +
-      '<p style="margin:8px 0">When you save: the amounts come off what is left in each category below, and the grocery items update your Kitchen prices and inventory.</p>' +
+      '<p style="margin:8px 0">When you save: the amounts come off what is left in each category below, and the items you tick Add to inventory update your Kitchen prices and inventory.</p>' +
       '<div style="margin-top:12px"><button class="btn" id="rc_scan">Take or choose a receipt photo</button></div></div>' +
       '<div class="card" style="margin-top:18px"><h2>What is left this month</h2>' + (rows || '<p class="note">Nothing scanned yet.</p>') + other + '</div>' +
       '<div class="card" style="margin-top:18px"><h2>Add a budget line</h2><p class="note">Need a place to budget something, like household items or gas? Add it here. It shows up in Money and in the receipt categories.</p>' +
@@ -97,7 +97,7 @@
         const r = await fetch('/api/receipt', { method: 'POST', headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + (session ? session.access_token : '') }, body: JSON.stringify({ mode: 'receipt', mediaType: 'image/jpeg', data }) });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || !j.result) throw new Error(j.error || 'Could not read that picture.');
-        RC = j.result; RC.items = (RC.items || []).map(it => ({ ...it, use: true, cat: guess(it.name) }));
+        RC = j.result; RC.items = (RC.items || []).map(it => ({ ...it, use: true, cat: guess(it.name), inv: isGroc(guess(it.name)) }));
         review();
       } catch (e) { failure(e.message); }
     });
@@ -119,29 +119,31 @@
       '<div style="display:flex;gap:8px;align-items:flex-start;padding:9px 0;border-bottom:1px solid #E7ECF5">' +
       '<input type="checkbox" data-rcuse="' + i + '"' + (it.use ? ' checked' : '') + ' style="margin-top:8px;width:18px;height:18px">' +
       '<div style="flex:1;min-width:0"><input data-rcname="' + i + '" value="' + esc(it.name) + '" style="margin-bottom:4px">' +
-      '<select data-rccat="' + i + '">' + catOpts(it.cat) + '</select></div>' +
+      '<select data-rccat="' + i + '">' + catOpts(it.cat) + '</select>' +
+'<label style="display:flex;gap:8px;align-items:center;margin:8px 0 0;font-size:14px;color:var(--blue)"><input type="checkbox" data-rcinv="' + i + '"' + (it.inv ? ' checked' : '') + ' style="width:20px;height:20px;min-height:0;flex:0 0 20px"> Add to inventory</label></div>' +
       '<div style="font-weight:700;font-size:14px;padding-top:8px">' + money(it.price) + '</div></div>').join('');
     const used = RC.items.filter(i => i.use);
     overlay('<h2 style="margin-top:0">' + esc(RC.store || 'Receipt') + '</h2>' +
-      '<p class="note" style="margin:0 0 8px">' + esc(RC.date || 'No date on the receipt') + (+RC.total > 0 ? ' · Total ' + money(RC.total) : '') + '. Check each line. Pick the right category. Untick anything that should not be saved.' + (fx.f > 1.001 ? ' Tax is shared across the items so the amounts add up to what you paid.' : '') + '</p>' +
+      '<p class="note" style="margin:0 0 8px">' + esc(RC.date || 'No date on the receipt') + (+RC.total > 0 ? ' · Total ' + money(RC.total) : '') + '. Check each line. The left box counts the line in your spending. Tick Add to inventory only for items you want in your Kitchen inventory.' + (fx.f > 1.001 ? ' Tax is shared across the items so the amounts add up to what you paid.' : '') + '</p>' +
       '<div style="max-height:50vh;overflow:auto">' + (rows || '<p>No items were found. Try a clearer photo.</p>') + '</div>' +
-      '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn" id="rc_save">Save receipt (' + used.length + ' items)</button><button class="btn ghost" id="rc_cancel">Cancel</button></div>');
+      '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn" id="rc_save">Save receipt (' + used.length + ' in spending, ' + RC.items.filter(i => i.inv).length + ' to inventory)</button><button class="btn ghost" id="rc_cancel">Cancel</button></div>');
     document.getElementById('rc_cancel').onclick = closeOv;
     document.querySelectorAll('[data-rcuse]').forEach(c => c.onchange = () => { RC.items[+c.dataset.rcuse].use = c.checked; review(); });
     document.querySelectorAll('[data-rcname]').forEach(c => c.onchange = () => { RC.items[+c.dataset.rcname].name = c.value; });
     document.querySelectorAll('[data-rccat]').forEach(c => c.onchange = () => { RC.items[+c.dataset.rccat].cat = c.value; });
-    document.getElementById('rc_save').onclick = save;
+    document.querySelectorAll('[data-rcinv]').forEach(c => c.onchange = () => { RC.items[+c.dataset.rcinv].inv = c.checked; const b = document.getElementById('rc_save'); if (b) b.textContent = 'Save receipt (' + RC.items.filter(i => i.use).length + ' in spending, ' + RC.items.filter(i => i.inv).length + ' to inventory)'; });
+document.getElementById('rc_save').onclick = save;
   }
   async function save() {
-    const used = RC.items.filter(i => i.use); if (!used.length) { closeOv(); return; }
+    const used = RC.items.filter(i => i.use); if (!used.length && !RC.items.some(i => i.inv)) { closeOv(); return; }
     const { f } = factor();
     const date = /^\d{4}-\d{2}-\d{2}$/.test(RC.date || '') ? RC.date : dayNow();
     const lines = used.map(i => ({ name: i.name, cat: i.cat, amount: Math.round((+i.price || 0) * f * 100) / 100 }));
     const total = Math.round(lines.reduce((t, l) => t + l.amount, 0) * 100) / 100;
     S.mdata.receipts = S.mdata.receipts || [];
-    S.mdata.receipts.push({ id: 'r' + Date.now().toString(36), date, store: RC.store || '', total, lines });
+    if (used.length) S.mdata.receipts.push({ id: 'r' + Date.now().toString(36), date, store: RC.store || '', total, lines });
     S.mdata.receipts = S.mdata.receipts.slice(-300);
-    const groc = used.filter(i => isGroc(i.cat)).map(i => ({ name: i.name, sizeValue: i.sizeValue, sizeUnit: i.sizeUnit, qty: i.qty, price: i.price }));
+    const groc = RC.items.filter(i => i.inv).map(i => ({ name: i.name, sizeValue: i.sizeValue, sizeUnit: i.sizeUnit, qty: i.qty, price: i.price }));
     if (groc.length) {
       S.kdata = S.kdata || {};
       S.kdata.rcQueue = (S.kdata.rcQueue || []).concat([{ date, store: RC.store || '', items: groc }]);
