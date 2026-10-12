@@ -76,7 +76,7 @@ let S={user:null,hh:null,me:null,members:[],tasks:[],page:'home',kdata:null};
 // ---------- screens ----------
 function signIn(msg){
   $('#root').innerHTML=`<div class="center"><div class="card">
-  <div class="eyebrow">Household COO · by Prep &amp; Purpose</div><h1>Welcome.</h1><div class="rule"></div>
+  <div class="eyebrow">Household COO · by Provision House</div><h1>Welcome.</h1><div class="rule"></div>
   <p style="color:var(--mute)">Type your email. We send you a link. Tap it and you are in. No password.</p>
   <label for="em">Email</label><input id="em" type="email" autocomplete="email">
   <div style="margin-top:16px"><button class="btn" id="go">Send my link</button></div>
@@ -217,7 +217,7 @@ function navItems(){
   return n;
 }
 function shell(){
-  $('#root').innerHTML=`<div id="app"><nav id="side"><div class="brand">Household<br>COO</div><div class="by">BY PREP &amp; PURPOSE</div>
+  $('#root').innerHTML=`<div id="app"><nav id="side"><div class="brand">Household<br>COO</div><div class="by">BY PROVISION HOUSE</div>
   ${navItems().map(([k,l])=>`<a data-p="${k}" class="${(S.page===k||(k==='k:dashboard'&&S.page.startsWith('k:')))?'on':''}">${l}</a>`).join('')}
   <div id="me"><b>${esc(S.hh?.name)}</b><br>${esc(S.me.role)}${seesMoney()?' · sees money':''}<br><a id="out" style="padding:6px 0 0;color:var(--gold-l);font-size:13px">Sign out</a></div></nav>
   <main id="main"></main></div>`;
