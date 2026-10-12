@@ -389,7 +389,7 @@ html,body{height:100%;overflow:hidden;font-family:'Jost',sans-serif;background:v
     <div class="sidebar-brand">
       <div class="sidebar-logo">🌿</div>
       <div class="sidebar-title">Household COO</div>
-      <div class="sidebar-sub">Prep & Purpose</div>
+      <div class="sidebar-sub">Provision House</div>
     </div>
     <div class="sidebar-nav">
       <div class="nav-section">Kitchen</div>
@@ -1620,7 +1620,7 @@ async function generateRecipe(){
 
   const hasNoProteins=allProteins.length===0;
 
-  const systemPrompt=`You are the Meal Builder for Prep & Purpose. ALWAYS build a meal — never refuse.
+  const systemPrompt=`You are the Meal Builder for Provision House. ALWAYS build a meal — never refuse.
 
 ${weekSelections.length>0?`SELECTED PROTEIN — NON-NEGOTIABLE: Build this meal using ONLY: ${weekSelections.join(', ')}. Do not substitute. Do not switch proteins.`:''}
 
@@ -3149,7 +3149,7 @@ function printWeekCalendar(){
   <style>body{font-family:Arial,sans-serif;padding:20px;color:#1a1a1a}h2{color:#1e4d35;margin-bottom:4px}p{color:#666;font-size:13px;margin-bottom:16px}table{width:100%;border-collapse:collapse}th{background:#1e4d35;color:#fff;padding:10px 8px;border:1px solid #ddd;font-size:13px;text-align:center}td{vertical-align:top}@media print{body{padding:10px}}</style>
   </head><body>
   <h2>🥗 Meal Plan — ${label}</h2>
-  <p>Prep & Purpose · mealbuilderpro.prepandpurpose.com</p>
+  <p>Provision House · household-coo.vercel.app</p>
   <table>
     <thead><tr>
       <th style="width:80px">Slot</th>
@@ -3251,7 +3251,7 @@ function printMonthCalendar(){
   <style>body{font-family:Arial,sans-serif;padding:16px;color:#1a1a1a}h2{color:#1e4d35;margin-bottom:4px}p{color:#666;font-size:12px}table{width:100%;border-collapse:collapse}th{background:#1e4d35;color:#fff;padding:8px;border:1px solid #ddd;font-size:12px}@media print{body{padding:8px}}</style>
   </head><body>
   <h2>📅 ${monthLabel} — Meal Plan</h2>
-  <p>Prep & Purpose · mealbuilderpro.prepandpurpose.com</p>
+  <p>Provision House · household-coo.vercel.app</p>
   <table><thead><tr>${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map(d=>`<th>${d}</th>`).join('')}</tr></thead>
   <tbody>${tableRows}</tbody></table>
   <p style="margin-top:12px;font-size:10px;color:#999">Printed from Household COO · Reduce decisions. Install structure.</p>
@@ -3815,7 +3815,7 @@ function printEmergencyRecipe(id){
   <h3>STEPS</h3>
   ${(r.steps||[]).map((s,i)=>`<div class="step"><div class="num">${i+1}</div><div>${s}</div></div>`).join('')}
   ${r.tip?`<div class="tip">${r.tip}</div>`:''}
-  <p style="margin-top:20px;font-size:11px;color:#999">Prep & Purpose · mealbuilderpro.prepandpurpose.com · Reduce decisions. Install structure.</p>
+  <p style="margin-top:20px;font-size:11px;color:#999">Provision House · household-coo.vercel.app · Reduce decisions. Install structure.</p>
   </body></html>`;
   const w=window.open('','_blank');w.document.write(html);w.document.close();w.print();
 }
@@ -4266,7 +4266,7 @@ function _printRecipeObj(r,dateStr,slot){
   const fromStock=pull.filter(p=>stockKw.some(k=>p.qty&&p.qty.toLowerCase().includes(k)));
   const fromKitchen=pull.filter(p=>!stockKw.some(k=>p.qty&&p.qty.toLowerCase().includes(k)));
   const html='<html><head><title>'+title+'</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,serif;background:#fff;color:#1a1a1a;padding:32px 28px;max-width:680px;margin:0 auto}.hdr{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #1e4d35;padding-bottom:10px;margin-bottom:24px}.hdr-b{font-size:20px;font-weight:700;color:#1e4d35}.rtitle{font-size:26px;font-weight:700;color:#1e4d35;margin-bottom:8px}.rdesc{font-size:14px;color:#666;line-height:1.6;margin-bottom:14px;font-style:italic}.macros{display:flex;gap:16px;margin-bottom:16px;padding:10px;background:#f9f9f9;border-radius:8px}.macros span{font-size:12px;font-weight:600;color:#1e4d35}.sh{font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin:14px 0 6px;border-top:1px solid #eee;padding-top:8px}.pl{list-style:none;padding:0}.pl li{font-size:13px;padding:5px 0;border-bottom:1px solid #f5f5f5}.sl{padding-left:18px}.sl li{font-size:13px;line-height:1.7;padding:3px 0}.tip{margin-top:12px;background:#fff8e1;border-left:3px solid #b5850a;padding:10px 14px;font-size:12px;color:#6b5100;border-radius:0 5px 5px 0}.ftr{margin-top:28px;border-top:1px solid #eee;padding-top:10px;font-size:11px;color:#bbb;text-align:center}@media print{body{padding:16px}}</style></head><body>'
-    +'<div class="hdr"><div class="hdr-b">Prep &amp; Purpose</div><div style="font-size:12px;color:#888">'+(dateStr||new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}))+(slot?' · '+slot:'')+'</div></div>'
+    +'<div class="hdr"><div class="hdr-b">Provision House</div><div style="font-size:12px;color:#888">'+(dateStr||new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}))+(slot?' · '+slot:'')+'</div></div>'
     +'<div class="rtitle">'+title+'</div>'
     +(r.description?'<div class="rdesc">'+r.description+'</div>':'')
     +(r.macros?'<div class="macros"><span>'+r.macros.cal+' cal</span><span>'+r.macros.protein+'g protein</span><span>'+r.macros.carbs+'g carbs</span><span>'+r.macros.fat+'g fat</span></div>':'')
@@ -4286,13 +4286,13 @@ function printGroc(){
   if(allItems.length===0&&(!A.cookList||A.cookList.length===0)){alert('Your grocery list is empty.');return;}
   const section=(t,color,items)=>items.length===0?'':'<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:'+color+';margin:16px 0 8px">'+t+'</div><table style="width:100%;border-collapse:collapse">'+items.map(g=>'<tr style="border-bottom:1px solid #f0f0f0"><td style="width:24px;font-size:16px;padding:8px 0;color:#ccc">☐</td><td style="font-size:14px;padding:8px 6px;font-weight:500">'+g.name+'</td><td style="font-size:12px;color:#888;text-align:right;padding:8px 0">'+(g.qty||'')+'</td></tr>').join('')+'</table>';
   const cookSection=A.cookList&&A.cookList.length>0?'<div style="margin-bottom:16px;padding:12px;background:#1e4d35;border-radius:8px;color:#fff"><div style="font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:8px">🍳 Maintenance Day Cook List</div>'+A.cookList.map(c=>'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:13px"><span>'+c.protein+'</span><span>'+c.bags+' bags · buy '+c.rawLbs+' raw</span></div>').join('')+'</div>':'';
-  const html='<html><head><title>Prep & Purpose — Grocery List</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,serif;background:#fff;color:#1a1a1a;padding:32px 28px;max-width:680px;margin:0 auto}.hdr{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #1e4d35;padding-bottom:10px;margin-bottom:24px}.hdr-b{font-size:20px;font-weight:700;color:#1e4d35}.tip{margin-top:24px;background:#fff8e1;border-left:3px solid #b5850a;padding:12px 14px;font-size:13px;color:#6b5100;border-radius:0 6px 6px 0}.ftr{margin-top:28px;border-top:1px solid #eee;padding-top:10px;font-size:11px;color:#bbb;text-align:center}@media print{body{padding:16px}}</style></head><body>'
-    +'<div class="hdr"><div class="hdr-b">Prep &amp; Purpose — Grocery List</div><div style="font-size:12px;color:#888">'+new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})+'</div></div>'
+  const html='<html><head><title>Provision House — Grocery List</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,serif;background:#fff;color:#1a1a1a;padding:32px 28px;max-width:680px;margin:0 auto}.hdr{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #1e4d35;padding-bottom:10px;margin-bottom:24px}.hdr-b{font-size:20px;font-weight:700;color:#1e4d35}.tip{margin-top:24px;background:#fff8e1;border-left:3px solid #b5850a;padding:12px 14px;font-size:13px;color:#6b5100;border-radius:0 6px 6px 0}.ftr{margin-top:28px;border-top:1px solid #eee;padding-top:10px;font-size:11px;color:#bbb;text-align:center}@media print{body{padding:16px}}</style></head><body>'
+    +'<div class="hdr"><div class="hdr-b">Provision House — Grocery List</div><div style="font-size:12px;color:#888">'+new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})+'</div></div>'
     +cookSection
     +section('🚨 Out — Need Now','#c62828',out)
     +section('⚠️ Needed','#f57f17',low)
     +'<div class="tip">📏 Protein Shrinkage Rule: Always buy 30% more raw than you think you need. 1 quart bag = 1.5 lbs cooked. For '+A.householdSize+' people: 5 lbs raw ≈ 2–3 full quart bags.</div>'
-    +'<div class="ftr">Prep & Purpose — steward what you have, serve where you are.</div>'
+    +'<div class="ftr">Provision House — steward what you have, serve where you are.</div>'
     +'</body></html>';
   const win=window.open('','_blank');win.document.write(html);win.document.close();setTimeout(()=>win.print(),400);
 }
@@ -4391,7 +4391,7 @@ function printBlankInventory(){
     <div><div class="sec">🧂 Kitchen Staples — On Hand</div><table><tbody>${pantryToggleRows}</tbody></table></div>
   </div>
 
-  <div class="ftr">Prep & Purpose · mealbuilderpro.prepandpurpose.com · Steward what you have, serve where you are.</div>
+  <div class="ftr">Provision House · household-coo.vercel.app · Steward what you have, serve where you are.</div>
   </body></html>`;
 
   const win=window.open('','_blank');
