@@ -1,6 +1,6 @@
 // Household COO: People. Parents add people, choose a role, and choose who can see money or add to the Command Center.
 (function () {
-  const ROLE = { owner: 'Owner', adult: 'Parent', kid: 'Kid', helper: 'Helper', staff: 'Staff' };
+  const ROLE = { owner: 'Owner', adult: 'Parent', kid: 'Household member', helper: 'Helper', staff: 'Staff' };
   const mgr = () => S.me && ['owner', 'adult'].includes(S.me.role);
 
   window.loadInvites = async function () {
@@ -46,7 +46,7 @@
       '<label for="pp_email">Email they will sign in with</label><input id="pp_email" type="email" autocomplete="off">' +
       '<label for="pp_role">Role</label><select id="pp_role">' + roleOpts('kid') + '</select>' +
       '<label id="pp_mrow" style="display:none;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="pp_money"> Can see money</label>' +
-      '<p class="note">Kids, helpers and staff never see money.</p>' +
+      '<p class="note">Household members, helpers and staff never see money.</p>' +
       '<div style="margin-top:12px"><button class="btn" id="pp_add">Add person</button></div></div>';
     return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>People.</h1><div class="rule"></div>' +
       '<div class="card"><h2>Your household</h2>' + (rows || '<p class="note">Just you so far.</p>') + '</div>' + msg + form + pend;
