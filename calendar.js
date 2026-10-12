@@ -162,8 +162,8 @@ const step = () => Math.round(window.innerHeight * 0.6);
 const close = () => { o.remove(); document.removeEventListener('keydown', onKey, true); };
 const onKey = e => {
 if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'BrowserBack' || e.key === 'GoBack') { e.preventDefault(); close(); }
-else if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); o.scrollBy({ top: step(), behavior: 'smooth' }); }
-else if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); o.scrollBy({ top: -step(), behavior: 'smooth' }); }
+else if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); const L = Array.from(o.querySelectorAll('[data-dm],[data-di]')); if (L.length) { L[Math.min(L.length - 1, L.indexOf(document.activeElement) + 1)].focus(); } else o.scrollBy({ top: step(), behavior: 'smooth' }); }
+else if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); const L = Array.from(o.querySelectorAll('[data-dm],[data-di]')); if (L.length) { L[Math.max(0, L.indexOf(document.activeElement) - 1)].focus(); } else o.scrollBy({ top: -step(), behavior: 'smooth' }); }
 };
 document.addEventListener('keydown', onKey, true);
 o.onclick = e => { if (e.target === o) close(); };
@@ -172,6 +172,7 @@ o.querySelector('#ovup').onclick = () => o.scrollBy({ top: -step(), behavior: 's
 o.querySelector('#ovdn').onclick = () => o.scrollBy({ top: step(), behavior: 'smooth' });
 o.querySelector('#ovx').onclick = close;
 o.focus();
+return o;
 }
 function noteBody(title, notes, w) {
 return '<h2 style="margin:0 0 4px">' + esc(title) + '</h2>' + (w ? '<div class="note">' + esc(who(w)) + '</div>' : '') + '<h3>How to do it</h3><div style="white-space:pre-wrap">' + esc(notes) + '</div>';
@@ -184,6 +185,17 @@ const d = ds ? pd(ds) : null;
 const when = d ? DN[d.getDay()] + ', ' + MN[d.getMonth()] + ' ' + d.getDate() : '';
 const body = '<span class="cal-tag" style="background:' + t[1] + '">' + t[0] + '</span>' + (it.done ? '<span class="chip">Done</span>' : '') + '<h2 style="margin:8px 0 4px">' + esc(it.title) + '</h2><div class="note">' + esc(when) + (it.who ? ' &middot; ' + esc(who(it.who)) : '') + '</div>' + (it.notes ? '<h3>How to do it</h3><div style="white-space:pre-wrap">' + esc(it.notes) + '</div>' : '<p class="note">No instructions were added for this one.</p>');
 overlay(body, true);
+};
+
+window.cooDayView = function (ds) {
+const r = cooDay(ds), d = pd(ds);
+const tag = (c, t) => '<span class="cal-tag" style="background:' + c + '">' + t + '</span>';
+const bst = 'display:block;width:100%;text-align:left;margin:8px 0;min-height:56px;font-size:inherit';
+const rows = r.meals.map((x, i) => '<button class="btn ghost" style="' + bst + '" data-dm="' + i + '">' + tag('#2f7d4f', x.slot[0].toUpperCase() + x.slot.slice(1)) + esc(x.m.title || 'Meal') + '</button>')
+.concat(r.items.map((x, i) => '<button class="btn ghost" style="' + bst + '" data-di="' + i + '">' + tag((TYPES[x.type] || ['', '#666'])[1], (TYPES[x.type] || ['Item'])[0]) + (x.done ? '<s>' + esc(x.title) + '</s>' : esc(x.title)) + '</button>')).join('');
+const o = overlay('<h2 style="margin:0 0 8px">' + DN[d.getDay()] + ', ' + MN[d.getMonth()] + ' ' + d.getDate() + '</h2>' + (rows || '<p class="note">Nothing planned.</p>'), true);
+o.querySelectorAll('[data-dm]').forEach(b => b.onclick = () => showRecipe(ds, r.meals[+b.dataset.dm].slot, true));
+o.querySelectorAll('[data-di]').forEach(b => b.onclick = () => window.cooItem(r.items[+b.dataset.di], ds));
 };
 
 function myMoney() {
