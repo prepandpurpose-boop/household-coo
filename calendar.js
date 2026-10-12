@@ -137,7 +137,7 @@ const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'];
     if (!ms.length) return '';
     return '<h3 style="margin:14px 0 2px;font-size:20px">Meals</h3>' + ms.map(x => '<div class="cal-row"><span style="flex:0 0 28px"></span><div style="flex:1"><div style="font-weight:600"><span class="cal-tag" style="background:#2f7d4f">' + x.slot[0].toUpperCase() + x.slot.slice(1) + '</span>' + esc(x.m.title || 'Meal') + '</div></div><button class="btn ghost" style="min-height:32px;padding:0 12px" data-meal="' + x.slot + '" data-mday="' + ds + '">' + (x.m.steps && x.m.steps.length ? 'See recipe' : 'Details') + '</button></div>').join('');
   }
-  function showRecipe(ds, slot) {
+  function showRecipe(ds, slot, big) {
     const r = (mealsOn(ds).find(x => x.slot === slot) || {}).m; if (!r) return;
     const mac = r.macros ? '<div style="display:flex;gap:14px;flex-wrap:wrap;margin:10px 0"><span><b>' + esc(r.macros.cal) + '</b> cal</span><span><b>' + esc(r.macros.protein) + 'g</b> protein</span><span><b>' + esc(r.macros.carbs) + 'g</b> carbs</span><span><b>' + esc(r.macros.fat) + 'g</b> fat</span></div>' : '';
     const pull = (r.pull || []).map(p => '<li>' + esc(p.qty || '') + ' ' + esc(p.item || '') + (p.prepNote ? ' <span class="note">(' + esc(p.prepNote) + ')</span>' : '') + '</li>').join('');
@@ -146,20 +146,45 @@ const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'];
       (r.cookTime ? '<p><b>' + esc(r.cookTime) + '</b></p>' : '') + (pull ? '<h3>What you need</h3><ul>' + pull + '</ul>' : '') + (steps ? '<h3>Steps</h3><ol>' + steps + '</ol>' : '<p class="note">No recipe was saved for this one. Open it in the Kitchen to add details.</p>') + (r.tip ? '<p class="note">' + esc(r.tip) + '</p>' : '');
     const o = document.createElement('div');
     o.style.cssText = 'position:fixed;inset:0;background:rgba(20,33,61,.6);z-index:9999;overflow:auto;padding:20px 12px';
-    o.innerHTML = '<div style="background:#fff;max-width:640px;margin:0 auto;border-radius:12px;padding:20px 22px;position:relative"><button class="btn ghost" id="rcx" style="position:absolute;top:10px;right:10px" aria-label="Close">&#10005;</button>' + body + '</div>';
-    o.onclick = e => { if (e.target === o || e.target.id === 'rcx') o.remove(); };
-    document.body.appendChild(o);
+    overlay(body, big);
   }
 
 
-  function showNotes(k) {
-const n = NOTES[k]; if (!n) return;
+  function overlay(body, big) {
+const prev = document.getElementById('coo-ov'); if (prev) prev.remove();
 const o = document.createElement('div');
-o.style.cssText = 'position:fixed;inset:0;background:rgba(20,33,61,.6);z-index:9999;overflow:auto;padding:20px 12px';
-o.innerHTML = '<div style="background:#fff;max-width:640px;margin:0 auto;border-radius:12px;padding:20px 22px;position:relative"><button class="btn ghost" id="rcx" style="position:absolute;top:10px;right:10px" aria-label="Close">&#10005;</button><h2 style="margin:0 0 4px">' + esc(n.title) + '</h2>' + (n.who ? '<div class="note">' + esc(who(n.who)) + '</div>' : '') + '<h3>How to do it</h3><div style="white-space:pre-wrap;line-height:1.5">' + esc(n.notes) + '</div></div>';
-o.onclick = e => { if (e.target === o || e.target.id === 'rcx') o.remove(); };
+o.id = 'coo-ov'; o.tabIndex = -1;
+o.style.cssText = 'position:fixed;inset:0;background:rgba(20,33,61,.85);z-index:9999;overflow:auto;padding:20px 12px 110px;outline:none;-webkit-overflow-scrolling:touch';
+const bs = 'min-height:56px;padding:0 22px;font-size:20px';
+o.innerHTML = '<div style="background:#fff;max-width:' + (big ? '1100px' : '640px') + ';margin:0 auto;border-radius:12px;padding:22px 26px;font-size:' + (big ? 'clamp(20px,3.2vh,34px)' : '16px') + ';line-height:1.45">' + body + '</div>' +
+'<div style="position:fixed;right:16px;bottom:16px;display:flex;gap:10px;z-index:10000"><button class="btn" id="ovup" style="' + bs + '">&#9650; Up</button><button class="btn" id="ovdn" style="' + bs + '">&#9660; Down</button><button class="btn" id="ovx" style="' + bs + ';background:#C59B27;color:#14213d">Close</button></div>';
+const step = () => Math.round(window.innerHeight * 0.6);
+const close = () => { o.remove(); document.removeEventListener('keydown', onKey, true); };
+const onKey = e => {
+if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'BrowserBack' || e.key === 'GoBack') { e.preventDefault(); close(); }
+else if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); o.scrollBy({ top: step(), behavior: 'smooth' }); }
+else if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); o.scrollBy({ top: -step(), behavior: 'smooth' }); }
+};
+document.addEventListener('keydown', onKey, true);
+o.onclick = e => { if (e.target === o) close(); };
 document.body.appendChild(o);
+o.querySelector('#ovup').onclick = () => o.scrollBy({ top: -step(), behavior: 'smooth' });
+o.querySelector('#ovdn').onclick = () => o.scrollBy({ top: step(), behavior: 'smooth' });
+o.querySelector('#ovx').onclick = close;
+o.focus();
 }
+function noteBody(title, notes, w) {
+return '<h2 style="margin:0 0 4px">' + esc(title) + '</h2>' + (w ? '<div class="note">' + esc(who(w)) + '</div>' : '') + '<h3>How to do it</h3><div style="white-space:pre-wrap">' + esc(notes) + '</div>';
+}
+function showNotes(k, big) { const n = NOTES[k]; if (n) overlay(noteBody(n.title, n.notes, n.who), big); }
+window.cooRecipe = (ds, slot) => showRecipe(ds, slot, true);
+window.cooItem = (it, ds) => {
+const t = TYPES[it.type] || ['Item', '#666'];
+const d = ds ? pd(ds) : null;
+const when = d ? DN[d.getDay()] + ', ' + MN[d.getMonth()] + ' ' + d.getDate() : '';
+const body = '<span class="cal-tag" style="background:' + t[1] + '">' + t[0] + '</span>' + (it.done ? '<span class="chip">Done</span>' : '') + '<h2 style="margin:8px 0 4px">' + esc(it.title) + '</h2><div class="note">' + esc(when) + (it.who ? ' &middot; ' + esc(who(it.who)) : '') + '</div>' + (it.notes ? '<h3>How to do it</h3><div style="white-space:pre-wrap">' + esc(it.notes) + '</div>' : '<p class="note">No instructions were added for this one.</p>');
+overlay(body, true);
+};
 
 function myMoney() {
     if (!moneyOK()) return '';
