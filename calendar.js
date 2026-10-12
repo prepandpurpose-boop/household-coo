@@ -96,7 +96,8 @@
       const d = pd(ds);
       (S.mdata.overhead || []).forEach(o => {
         if (o.action === 'Prune (Cancel)' || !(+o.cost > 0) || !(+o.due >= 1)) return;
-        if (d.getDate() === Math.min(+o.due, dim(d.getFullYear(), d.getMonth()))) { const key = 'b:' + o.category + '|' + ds; if (withMoney) out.push({ type: 'bill', title: 'Pay ' + o.category + ' ' + money(o.cost), key, done: !!S.cal.done[key] }); }
+        if (o.sys === 'coo' && o.plan === 'yearly' && +o.dueMonth !== d.getMonth()) return;
+        if (d.getDate() === Math.min(+o.due, dim(d.getFullYear(), d.getMonth()))) { const key = 'b:' + o.category + '|' + ds; const amt = (o.sys === 'coo' && o.plan === 'yearly') ? (+o.amount || 0) : o.cost; if (withMoney) out.push({ type: 'bill', title: 'Pay ' + o.category + ' ' + money(amt), key, done: !!S.cal.done[key] }); }
       });
       (S.mdata.income || []).forEach(r => { if (withMoney && paydayOn(r, ds)) out.push({ type: 'payday', title: 'Payday: ' + (r.source || 'Pay') + ' ' + money(r.amount) }); });
       (S.mdata.maint || []).forEach(m => {

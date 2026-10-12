@@ -230,7 +230,7 @@ window.addEventListener('message',e=>{
           return of(u,o);
         };
       }catch(err){console.warn(err)}
-      mf.contentWindow.postMessage({type:'money-init',data:S.mdata},location.origin);
+      mf.contentWindow.postMessage({type:'money-init',data:S.mdata,sub:S.sub},location.origin);
     }
   }else if(m.type==='receipt-spend'){
     if(seesMoney()&&S.mdata){

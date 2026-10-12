@@ -954,6 +954,8 @@ const WALL_TIERS=['10% Tithe','Shelter (Wall 1)','Food (Wall 2)','Utilities (Wal
 const EXPENSE_TIERS=['Phone & Internet','Streaming & Subscriptions','Memberships & Dues','Insurance (Other)','Personal & Discretionary','Other Recurring'];
 const ACTIONS=['Keep (Essential)','Audit (Negotiate)','Prune (Cancel)'];
 function overheadKind(r){return r.kind==='expense'?'expense':'wall';}
+// What a bill costs in month m (0-11) for calendars. A yearly bill (the Household COO subscription on the yearly plan) shows once, in its own month, for the full amount. Everything else is monthly.
+function billFor(o,m){if(o.sys==='coo'&&o.plan==='yearly')return(+o.dueMonth===m)?(+o.amount||0):null;return +o.cost||0;}
 function tierSelect(i,r,tiers){
   const opts=tiers.slice();
   if(r.tier&&!opts.includes(r.tier))opts.unshift(r.tier);
@@ -1602,7 +1604,7 @@ function collectOccurrences(start,end){
   state.overhead.forEach(o=>{
     if(o.action==='Prune (Cancel)'||!(+o.due>=1))return;
     let cur=new Date(start.getFullYear(),start.getMonth(),1);const stop=new Date(end.getFullYear(),end.getMonth()+1,1);
-    while(cur<=stop){const dim=daysInMonth(cur.getFullYear(),cur.getMonth());const dd=new Date(cur.getFullYear(),cur.getMonth(),Math.min(+o.due,dim));if(dd>=start&&dd<=end)items.push({date:dd,type:'bill',title:o.category,amount:+o.cost||0});cur.setMonth(cur.getMonth()+1);}
+    while(cur<=stop){const dim=daysInMonth(cur.getFullYear(),cur.getMonth());const dd=new Date(cur.getFullYear(),cur.getMonth(),Math.min(+o.due,dim));const ba=billFor(o,cur.getMonth());if(ba!=null&&dd>=start&&dd<=end)items.push({date:dd,type:'bill',title:o.category,amount:ba});cur.setMonth(cur.getMonth()+1);}
   });
   state.events.forEach((ev,i)=>eventOccurrences(ev,start,end).forEach(d=>items.push({date:d,type:ev.type||'note',title:ev.title,evIndex:i,pdfId:ev.pdfId,fileName:ev.fileName})));
   (state.chores||[]).forEach(c=>{
@@ -1696,7 +1698,7 @@ function renderPaycheckPlanner(){
   const el=document.getElementById('paycheckPlanner');
   if(!checks.length){el.innerHTML=`<div class="empty">No paydays fall in ${MONTHS[m]} ${y}. Add an income source on the Treasury tab, then use ‹ › to move months.</div>`;return;}
   const bills=[];
-  state.overhead.forEach(o=>{if(o.action!=='Prune (Cancel)'&&+o.due>=1){const dd=new Date(y,m,Math.min(+o.due,daysInMonth(y,m)));bills.push({date:dd,title:o.category,amount:+o.cost||0});}});
+  state.overhead.forEach(o=>{if(o.action!=='Prune (Cancel)'&&+o.due>=1){const ba=billFor(o,m);if(ba==null)return;const dd=new Date(y,m,Math.min(+o.due,daysInMonth(y,m)));bills.push({date:dd,title:o.category,amount:ba});}});
   bills.sort((a,b)=>a.date-b.date);
   bills.forEach(b=>{let idx=-1;for(let i=0;i<checks.length;i++){if(checks[i].date<=b.date)idx=i;}if(idx<0)idx=0;checks[idx].bills.push(b);});
   const perGoal=goalsMonthlyNeed()/checks.length;
@@ -1844,5 +1846,6 @@ try{parent.postMessage({type:'money-ready'},location.origin);}catch(e){}
 </script>
 <script src="import.js"></script>
 <script src="payplan.js"></script>
+<script src="coosub.js"></script>
 </body>
 </html>

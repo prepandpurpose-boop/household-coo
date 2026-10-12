@@ -148,7 +148,7 @@
     const wallRank = o => { const i = CATS.wall.indexOf(o.tier); return i < 0 ? 99 : i; };
     const walls = live.filter(o => o.kind !== 'expense').sort((x, y) => wallRank(x) - wallRank(y));
     const exps = live.filter(o => o.kind === 'expense');
-    const line = (g, o) => ({ g, id: 'b:' + o.category, label: o.category, amt: (+o.cost || 0) * share, note: (+o.due >= 1 ? 'Due on the ' + ord(+o.due) : 'No set date') + '. Month total ' + money0(+o.cost || 0) + '.' });
+    const line = (g, o) => ({ g, id: 'b:' + o.category, label: o.category, amt: (+o.cost || 0) * share, note: (window.cooBillNote && o.sys === 'coo' && window.cooBillNote(o)) || ((+o.due >= 1 ? 'Due on the ' + ord(+o.due) : 'No set date') + '. Month total ' + money0(+o.cost || 0) + '.') });
     walls.forEach(o => steps.push(line('Your Four Walls', o)));
     [['Shelter (Wall 1)', 'Shelter: rent or mortgage'], ['Food (Wall 2)', 'Food: groceries'], ['Utilities (Wall 3)', 'Utilities'], ['Transportation (Wall 4)', 'Transportation: car, gas']].forEach(w => {
       if (walls.some(o => o.tier === w[0])) return;
