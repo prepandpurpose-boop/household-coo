@@ -36,6 +36,7 @@
         '<label for="r_' + id + '">Role</label><select id="r_' + id + '" data-pprole="' + id + '">' + roleOpts(m.role) + '</select>' +
         (m.role === 'adult' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" data-ppmoney="' + id + '"' + (m.can_see_money ? ' checked' : '') + '> Can see money</label>' : '<p class="note" style="margin:8px 0 0">Cannot see money.</p>') +
         (m.role !== 'adult' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" data-ppadd="' + id + '"' + (S.cal.perms[id] ? ' checked' : '') + '> Can add to the Command Center for everyone</label>' : '') +
+(m.role !== 'adult' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" data-pptv="' + id + '"' + ((S.cal.tv || {})[id] ? ' checked' : '') + '> This is the TV screen account. It opens only the family board and cannot leave it.</label>' : '') +
         '</div>';
     }).join('');
     const pend = S.invites.length ? '<div class="card" style="margin-top:18px"><h2>Waiting to sign in</h2><p class="note">They join your household the first time they sign in with this email.</p>' +
@@ -87,7 +88,11 @@
       if (c.checked) S.cal.perms[c.dataset.ppadd] = true; else delete S.cal.perms[c.dataset.ppadd];
       await saveCal(); render();
     });
-    document.querySelectorAll('[data-ppdel]').forEach(b => b.onclick = async () => {
+    document.querySelectorAll('[data-pptv]').forEach(c => c.onchange = async () => {
+S.cal.tv = S.cal.tv || {}; if (c.checked) S.cal.tv[c.dataset.pptv] = true; else delete S.cal.tv[c.dataset.pptv];
+await saveCal(); render();
+});
+document.querySelectorAll('[data-ppdel]').forEach(b => b.onclick = async () => {
       if (!confirm('Remove ' + nm(b.dataset.ppdel) + ' from your household?')) return;
       const { error } = await sb.rpc('remove_member', { h: S.me.household_id, u: b.dataset.ppdel });
       if (error) alert(error.message);
