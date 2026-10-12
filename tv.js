@@ -42,7 +42,7 @@ const TVN = [];
       cols += '<div class="day' + (i === 0 ? ' today' : '') + '"><div class="dh">' + (i === 0 ? 'Today' : DAYS[d.getDay()]) + '<span>' + (d.getMonth() + 1) + '/' + d.getDate() + '</span></div>' +
         meals + items + (!meals && !items ? '<div class="none">Nothing planned</div>' : '') + '</div>';
     }
-    return CSS + '<div id="tv"><button class="x" id="tvx" aria-label="Close TV view">&#10005;</button>' +
+    return CSS + '<div id="tv">' + (S.tvLocked ? '' : '<button class="x" id="tvx" aria-label="Close TV view">&#10005;</button>') +
       '<div class="top"><div><div class="nm">' + esc((S.hh && S.hh.name) || 'Household') + '</div><div class="dt" id="tvdate"></div></div><div class="tm" id="tvtime"></div></div>' +
       '<div class="grid">' + cols + '</div></div>';
   }
@@ -53,7 +53,7 @@ const TVN = [];
   }
   function draw() {
     document.getElementById('root').innerHTML = html();
-    document.getElementById('tvx').onclick = stop;
+    const xb = document.getElementById('tvx'); if (xb) xb.onclick = stop;
 document.querySelectorAll('#tv .tvc').forEach(el => {
 el.onclick = () => { if (el.dataset.tn !== undefined) { const q = TVN[+el.dataset.tn]; if (q && window.cooItem) cooItem(q.it, q.ds); } else if (window.cooRecipe) cooRecipe(el.dataset.day, el.dataset.slot); };
 el.onkeydown = e => { if (e.key === 'Enter') el.click(); };
@@ -61,6 +61,7 @@ el.onkeydown = e => { if (e.key === 'Enter') el.click(); };
     tick();
   }
   function stop() {
+if (S.tvLocked) return;
     clearInterval(timer); clearInterval(clock);
     S.tv = false;
     if (/[?&]tv=1/.test(location.search)) location.href = location.pathname; else { shell(); render(); }
