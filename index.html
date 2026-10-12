@@ -63,10 +63,10 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
 <script src="config.js"></script>
 <script src="calendar.js?v=8"></script>
 <script src="kidmoney.js?v=1"></script>
-<script src="people.js?v=1"></script>
+<script src="people.js?v=2"></script>
 <script src="receipts.js?v=1"></script>
 <script src="paywall.js?v=1"></script>
-<script src="tv.js?v=2"></script>
+<script src="tv.js?v=3"></script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -173,6 +173,7 @@ async function load(){
   await loadKitchen();
   await loadMoney();
   try{await loadCal()}catch(e){console.warn(e)}
+if(S.cal&&S.cal.tv&&S.cal.tv[S.user.id]&&!isManager()&&typeof tvStart==='function'){S.tvLocked=true;tvStart();return}
   if(!S.me.display_name){const n=prompt('What name should the household see for you?');if(n){await sb.rpc('set_my_name',{n});S.me.display_name=n;const i=S.members.findIndex(x=>x.user_id===S.user.id);if(i>=0)S.members[i].display_name=n}}
   S.page=S.me.role==='kid'?'tasks':'cal';
   if(/[?&]tv=1/.test(location.search)&&typeof tvStart==='function'){tvStart();return}
