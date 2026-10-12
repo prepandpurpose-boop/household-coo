@@ -211,7 +211,7 @@ function navItems(){
   const kid=S.me.role==='kid', staff=['helper','staff'].includes(S.me.role);
   if(kid||staff) return [['tasks','My tasks'],['cal','Command Center']].concat(kid?[['km','My money'],['add','Add what I need'],['dinner','Dinner']]:[]);
   const n=[['cal','Command Center'],['k:dashboard','Kitchen']];
-  if(S.members.some(m=>m.role==='kid'))n.push(['km',"Kids' money"]);
+  if(S.members.some(m=>m.role==='kid'))n.push(['km',"Members' money"]);
   if(seesMoney()){n.push(['money','Money']);n.push(['receipts','Receipts']);}
   n.push(['people','People']);
   return n;
