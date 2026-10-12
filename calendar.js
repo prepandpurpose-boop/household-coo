@@ -89,9 +89,9 @@
         if (y > 0) title += it.type === 'birthday' ? ' (turns ' + y + ')' : ' (' + y + ' years)';
       }
       const key = it.type === 'maintenance' ? 'm:' + it.id + '|' + ds : '';
-      out.push({ type: it.type, title, who: it.who, rm: it.id, key, done: !!(key && S.cal.done[key]) });
+      out.push({ type: it.type, title, who: it.who, rm: it.id, key, notes: it.notes, done: !!(key && S.cal.done[key]) });
     });
-    (S.tasks || []).forEach(t => { if (t.due_date === ds) out.push({ type: t.kind === 'appointment' ? 'appointment' : 'todo', title: (t.due_time ? tm(t.due_time) + ' ' : '') + t.title, who: t.assigned_to, tid: t.id, done: t.status === 'done' }); });
+    (S.tasks || []).forEach(t => { if (t.due_date === ds) out.push({ type: t.kind === 'appointment' ? 'appointment' : 'todo', title: (t.due_time ? tm(t.due_time) + ' ' : '') + t.title, who: t.assigned_to, tid: t.id, notes: t.handoff_notes, done: t.status === 'done' }); });
     if (moneyOK()) {
       const d = pd(ds);
       (S.mdata.overhead || []).forEach(o => {
@@ -113,18 +113,21 @@
     const can = (it.tid && (canManage() || it.who === S.user.id)) || (it.key && canManage());
     const box = can ? '<button class="chk ' + (it.done ? 'done' : '') + '" ' + (it.tid ? 'data-tk="' + it.tid + '"' : 'data-ck="' + esc(it.key) + '"') + ' aria-label="Mark done">' + (it.done ? '&#10003;' : '') + '</button>' : '<span style="flex:0 0 28px"></span>';
     const dl = showDate ? '<div class="note">' + DN[pd(ds).getDay()] + ' ' + MN[pd(ds).getMonth()].slice(0, 3) + ' ' + pd(ds).getDate() + '</div>' : '';
-    const rm = it.rm && (canAdd() || it.who === S.user.id) ? '<button class="btn ghost" style="min-height:32px;padding:0 10px" data-rm="' + esc(it.rm) + '" aria-label="Remove">&#10005;</button>' : '';
-    return '<div class="cal-row">' + box + '<div style="flex:1"><div class="' + (it.done ? 'done-t' : '') + '" style="font-weight:600"><span class="cal-tag" style="background:' + t[1] + '">' + t[0] + '</span>' + esc(it.title) + (it.who ? '<span class="chip">' + esc(who(it.who)) + '</span>' : '') + '</div>' + dl + '</div>' + rm + '</div>';
+    const nk = it.tid || it.rm; if (it.notes && nk) NOTES[nk] = { title: it.title, notes: it.notes, who: it.who };
+const hb = it.notes && nk ? '<button class="btn ghost" style="min-height:32px;padding:0 12px" data-note="' + esc(nk) + '">How to do it</button>' : '';
+const rm = it.rm && (canAdd() || it.who === S.user.id) ? '<button class="btn ghost" style="min-height:32px;padding:0 10px" data-rm="' + esc(it.rm) + '" aria-label="Remove">&#10005;</button>' : '';
+    return '<div class="cal-row">' + box + '<div style="flex:1"><div class="' + (it.done ? 'done-t' : '') + '" style="font-weight:600"><span class="cal-tag" style="background:' + t[1] + '">' + t[0] + '</span>' + esc(it.title) + (it.who ? '<span class="chip">' + esc(who(it.who)) + '</span>' : '') + '</div>' + dl + '</div>' + hb + rm + '</div>';
   }
 
   function overdue() {
     const t = todayISO(), out = [];
-    (S.tasks || []).forEach(x => { if (x.due_date && x.due_date < t && x.status !== 'done') out.push({ ds: x.due_date, it: { type: x.kind === 'appointment' ? 'appointment' : 'todo', title: x.title, who: x.assigned_to, tid: x.id, done: false } }); });
+    (S.tasks || []).forEach(x => { if (x.due_date && x.due_date < t && x.status !== 'done') out.push({ ds: x.due_date, it: { type: x.kind === 'appointment' ? 'appointment' : 'todo', title: x.title, who: x.assigned_to, tid: x.id, notes: x.handoff_notes, done: false } }); });
     if (false) for (let i = 7; i >= 1; i--) { const ds = addDays(t, -i); itemsOn(ds).forEach(it => { if (it.type === 'bill' && !it.done) out.push({ ds, it }); }); }
     return out;
   }
 
-  const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'];
+  const NOTES = {};
+const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'];
   function mealsOn(ds) {
     const k = S.kdata && S.kdata.calendar_by_date, day = (k && k[ds]) || {};
     return SLOTS.filter(x => day[x]).map(x => { const m = day[x]; return { slot: x, m: typeof m === 'object' ? m : { title: String(m) } }; });
@@ -149,7 +152,16 @@
   }
 
 
-  function myMoney() {
+  function showNotes(k) {
+const n = NOTES[k]; if (!n) return;
+const o = document.createElement('div');
+o.style.cssText = 'position:fixed;inset:0;background:rgba(20,33,61,.6);z-index:9999;overflow:auto;padding:20px 12px';
+o.innerHTML = '<div style="background:#fff;max-width:640px;margin:0 auto;border-radius:12px;padding:20px 22px;position:relative"><button class="btn ghost" id="rcx" style="position:absolute;top:10px;right:10px" aria-label="Close">&#10005;</button><h2 style="margin:0 0 4px">' + esc(n.title) + '</h2>' + (n.who ? '<div class="note">' + esc(who(n.who)) + '</div>' : '') + '<h3>How to do it</h3><div style="white-space:pre-wrap;line-height:1.5">' + esc(n.notes) + '</div></div>';
+o.onclick = e => { if (e.target === o || e.target.id === 'rcx') o.remove(); };
+document.body.appendChild(o);
+}
+
+function myMoney() {
     if (!moneyOK()) return '';
     const t = todayISO(), past = [], now = [], up = [];
     for (let i = -7; i <= 7; i++) {
@@ -196,7 +208,8 @@
       '<div class="cal-two"><div><label for="cf_who">Who</label><select id="cf_who"><option value="">Everyone</option>' + S.members.map(x => '<option value="' + x.user_id + '">' + (x.user_id === S.user.id ? 'Me' : esc(who(x.user_id))) + '</option>').join('') + '</select></div>' +
       '<div id="cf_repwrap"><label for="cf_rep">Repeats</label><select id="cf_rep"><option value="none">Does not repeat</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year</option><option value="months">Every few months</option></select></div></div>' +
       '<div id="cf_everywrap" style="display:none"><label for="cf_every">Every how many months</label><input id="cf_every" type="number" min="1" value="6"></div>' +
-      '<div style="margin-top:14px"><button class="btn" id="cf_add">Add</button></div></div>';
+      '<label for="cf_notes">How to do it (notes people can open from the calendar)</label><textarea id="cf_notes" placeholder="Step by step, so whoever has it knows exactly how"></textarea>' +
+'<div style="margin-top:14px"><button class="btn" id="cf_add">Add</button></div></div>';
     const others = S.members.filter(x => !['owner', 'adult'].includes(x.role) && x.user_id !== S.user.id);
     const perm = !canManage() || !others.length ? '' : '<div class="card" style="margin-top:18px"><h2>Who else can add</h2><p class="note">Only you can add to the Command Center unless you tick someone here.</p>' + others.map(x => '<label style="display:flex;gap:10px;align-items:center;margin:8px 0"><input type="checkbox" style="width:22px;min-height:22px" data-perm="' + x.user_id + '" ' + (S.cal.perms[x.user_id] ? 'checked' : '') + '>' + esc(who(x.user_id)) + ' (' + esc(x.role) + ')</label>').join('') + '</div>';
     return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>Command Center.</h1><div class="rule"></div>' + calToday() + myMoney() +
@@ -229,12 +242,12 @@
           const title = document.getElementById('cf_title').value.trim(), date = document.getElementById('cf_date').value, type = ty.value, w = canAdd() ? document.getElementById('cf_who').value : S.user.id;
           if (!title || !date) { alert('Type what it is and pick a date.'); return; }
           if (type === 'todo' || type === 'appointment') {
-            const { error } = await sb.from('tasks').insert({ household_id: S.me.household_id, title, assigned_to: w || null, shared: canManage(), due_date: date, kind: type === 'appointment' ? 'appointment' : 'task', due_time: type === 'appointment' ? (document.getElementById('cf_time').value || null) : null });
+            const { error } = await sb.from('tasks').insert({ household_id: S.me.household_id, title, handoff_notes: document.getElementById('cf_notes').value.trim() || null, assigned_to: w || null, shared: canManage(), due_date: date, kind: type === 'appointment' ? 'appointment' : 'task', due_time: type === 'appointment' ? (document.getElementById('cf_time').value || null) : null });
             if (error) { alert(error.message); return; }
             await loadTasks();
           } else {
             const rep = (type === 'birthday' || type === 'anniversary') ? 'yearly' : document.getElementById('cf_rep').value;
-            S.cal.items.push({ id: 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), type, title, date, who: w, repeat: rep, every: +document.getElementById('cf_every').value || 6 });
+            S.cal.items.push({ id: 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), type, title, date, who: w, notes: document.getElementById('cf_notes').value.trim() || null, repeat: rep, every: +document.getElementById('cf_every').value || 6 });
             await saveCal();
           }
           S.calSel = date; const d = pd(date); S.calM = { y: d.getFullYear(), m: d.getMonth() };
@@ -243,7 +256,8 @@
       }
     }
     document.querySelectorAll('[data-perm]').forEach(b => b.onchange = async () => { S.cal.perms[b.dataset.perm] = b.checked; await saveCal(); render(); });
-    document.querySelectorAll('[data-meal]').forEach(b => b.onclick = () => showRecipe(b.dataset.mday, b.dataset.meal));
+    document.querySelectorAll('[data-note]').forEach(b => b.onclick = () => showNotes(b.dataset.note));
+document.querySelectorAll('[data-meal]').forEach(b => b.onclick = () => showRecipe(b.dataset.mday, b.dataset.meal));
     document.querySelectorAll('[data-ck]').forEach(b => b.onclick = async () => {
       const k = b.dataset.ck; if (S.cal.done[k]) delete S.cal.done[k]; else S.cal.done[k] = true;
       await saveCal(); render();
