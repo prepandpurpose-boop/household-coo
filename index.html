@@ -74,21 +74,66 @@ const sb=supabase.createClient(COO_CONFIG.SUPABASE_URL,COO_CONFIG.SUPABASE_PUBLI
 let S={user:null,hh:null,me:null,members:[],tasks:[],page:'home',kdata:null};
 
 // ---------- screens ----------
-function signIn(msg){
-  $('#root').innerHTML=`<div class="center"><div class="card">
-  <div class="eyebrow">Household COO · by Provision House</div><h1>Welcome.</h1><div class="rule"></div>
-  <p style="color:var(--mute)">Type your email. We send you a link. Tap it and you are in. No password.</p>
-  <label for="em">Email</label><input id="em" type="email" autocomplete="email">
-  <div style="margin-top:16px"><button class="btn" id="go">Send my link</button></div>
-  <div class="err" id="msg">${esc(msg||'')}</div></div></div>`;
-  $('#go').onclick=async()=>{
-    const email=$('#em').value.trim(); if(!email)return;
-    $('#go').disabled=true;
-    const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
-    $('#msg').style.color=error?'':'var(--blue)';
-    $('#msg').textContent=error?error.message:'Link sent. Open your email and tap it.';
-    $('#go').disabled=false;
-  };
+function friendly(e){
+const m=String((e&&e.message)||e||'').toLowerCase();
+if(m.includes('invalid login'))return 'That email or password is not right. Try again, or tap Forgot password.';
+if(m.includes('already registered')||m.includes('already been registered'))return 'That email already has an account. Tap Sign in instead.';
+if(m.includes('password')&&(m.includes('characters')||m.includes('weak')||m.includes('short')))return 'Your password needs at least 8 characters.';
+if(m.includes('rate limit')||m.includes('too many')||m.includes('seconds'))return 'Too many tries. Wait a few minutes and try again.';
+if(m.includes('not confirmed'))return 'Please confirm your email first. Check your inbox.';
+if(m.includes('valid email')||m.includes('invalid email'))return 'That email does not look right. Check it and try again.';
+if(m.includes('fetch')||m.includes('network'))return 'No connection. Check your internet and try again.';
+return 'Something went wrong. Please try again.';
+}
+function signIn(msg,mode){
+mode=mode||'in';
+if(location.hash)history.replaceState(null,'',location.pathname+location.search);
+const up=mode==='up', fg=mode==='forgot';
+const head=up?'Create your account.':(fg?'Reset your password.':'Welcome.');
+const sub=up?'Use your email and pick a password with at least 8 characters.':(fg?'Type your email. We send you an email to choose a new password.':'Sign in with your email and password.');
+$('#root').innerHTML='<div class="center"><div class="card">'
++'<div class="eyebrow">Household COO · by Provision House</div><h1>'+head+'</h1><div class="rule"></div>'
++'<p style="color:var(--mute)">'+sub+'</p>'
++'<label for="em">Email</label><input id="em" type="email" autocomplete="email">'
++(fg?'':'<label for="pw">Password</label><input id="pw" type="password" autocomplete="'+(up?'new-password':'current-password')+'">')
++'<div style="margin-top:16px"><button class="btn" id="go">'+(up?'Create account':(fg?'Send reset email':'Sign in'))+'</button></div>'
++'<div class="err" id="msg">'+esc(msg||'')+'</div>'
++'<div style="margin-top:14px;display:flex;gap:14px;flex-wrap:wrap;font-size:14px">'
++(up||fg?'<a href="#" id="s-in" style="color:var(--blue)">Back to sign in</a>':'<a href="#" id="s-up" style="color:var(--blue)">Create an account</a><a href="#" id="s-fg" style="color:var(--blue)">Forgot password</a>')
++'</div></div></div>';
+const say=(t,good)=>{$('#msg').style.color=good?'var(--blue)':'';$('#msg').textContent=t};
+const sw=(id,m)=>{const a=document.getElementById(id);if(a)a.onclick=ev=>{ev.preventDefault();signIn('',m)}};
+sw('s-in','in');sw('s-up','up');sw('s-fg','forgot');
+const submit=async()=>{
+const email=$('#em').value.trim(), pw=$('#pw')?$('#pw').value:'';
+if(!email){say('Type your email.');return}
+if(!fg&&!pw){say('Type your password.');return}
+if(up&&pw.length<8){say('Your password needs at least 8 characters.');return}
+$('#go').disabled=true;
+try{
+if(fg){const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(error)throw error;say('If that email has an account, a reset email is on its way.',true)}
+else if(up){const {data,error}=await sb.auth.signUp({email,password:pw});if(error)throw error;if(!data.session){const r=await sb.auth.signInWithPassword({email,password:pw});if(r.error){say('Almost done. Open your email and confirm your address, then sign in.',true)}}}
+else{const {error}=await sb.auth.signInWithPassword({email,password:pw});if(error)throw error}
+}catch(e){say(friendly(e))}
+$('#go').disabled=false;
+};
+$('#go').onclick=submit;
+['em','pw'].forEach(id=>{const el=document.getElementById(id);if(el)el.onkeydown=ev=>{if(ev.key==='Enter')submit()}});
+}
+function newPassword(){
+$('#root').innerHTML='<div class="center"><div class="card">'
++'<div class="eyebrow">Household COO · by Provision House</div><h1>Choose a new password.</h1><div class="rule"></div>'
++'<label for="np">New password (at least 8 characters)</label><input id="np" type="password" autocomplete="new-password">'
++'<div style="margin-top:16px"><button class="btn" id="go">Save password</button></div><div class="err" id="msg"></div></div></div>';
+$('#go').onclick=async()=>{
+const p=$('#np').value;
+if(p.length<8){$('#msg').textContent='Your password needs at least 8 characters.';return}
+$('#go').disabled=true;
+const {error}=await sb.auth.updateUser({password:p});
+if(error){$('#msg').textContent=friendly(error);$('#go').disabled=false;return}
+history.replaceState(null,'',location.pathname+location.search);
+load();
+};
 }
 function createHousehold(){
   $('#root').innerHTML=`<div class="center"><div class="card">
@@ -115,7 +160,7 @@ async function load(){
   S.user=session.user;
   try{await sb.rpc('claim_invites')}catch(e){console.warn(e)}
   const {data:mem,error}=await sb.from('household_members').select('*').eq('user_id',S.user.id);
-  if(error){signIn(error.message);return}
+  if(error){signIn(friendly(error));return}
   if(!mem.length){createHousehold();return}
   S.me=mem[0];
   if(mem.length>1){const {data:cnt}=await sb.from('household_members').select('household_id').in('household_id',mem.map(x=>x.household_id));const c={};(cnt||[]).forEach(x=>{c[x.household_id]=(c[x.household_id]||0)+1});mem.sort((a,b)=>(c[b.household_id]||0)-(c[a.household_id]||0)||String(a.created_at).localeCompare(String(b.created_at)));S.me=mem[0];}
@@ -302,7 +347,7 @@ function bind(){
   if(typeof receiptsBind==='function')receiptsBind();
   const tvb=document.getElementById('tvgo');if(tvb)tvb.onclick=()=>tvStart();
 }
-sb.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_IN'&&!S.user)load() });
+sb.auth.onAuthStateChange((ev)=>{ if(ev==='PASSWORD_RECOVERY'){newPassword();return} if(ev==='SIGNED_IN'&&!S.user)load() });
 load();
 </script>
 </body>
