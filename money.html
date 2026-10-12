@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Provisioned Household · CFO Command Center</title>
+<title>Household COO · CFO Command Center</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2314213d'/%3E%3Ccircle cx='32' cy='32' r='27' fill='none' stroke='%23C9A84C' stroke-width='2'/%3E%3Ctext x='32' y='43' font-family='Georgia,serif' font-size='28' font-weight='700' fill='%23C9A84C' text-anchor='middle'%3EPH%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -301,7 +301,7 @@
   <div class="mast-inner">
     <div class="monogram">PH</div>
     <div class="mast-title">
-      <div class="kicker">The Provisioned Household</div>
+      <div class="kicker">Household COO</div>
       <h1>CFO Command Center</h1>
       <div class="tag">Quiet Stewardship &nbsp;·&nbsp; Systems Integrity &nbsp;·&nbsp; Sovereign Rest</div>
       <div style="margin-top:7px;font-size:.6rem;letter-spacing:2.5px;color:var(--gold-lt);font-weight:600">VERSION 3.3 · AUG 31, 2026</div>
@@ -412,8 +412,8 @@
   </section>
   <section class="panel active" id="treasury">
     <div class="section-head">
-      <h2>The Sovereign Treasury Ledger</h2>
-      <div class="sub">A fixed-expenses-first flow: your non-negotiables are covered before a single dollar of surplus is allocated. Type into the <em>blue</em> fields; the shaded cells calculate for you.</div>
+      <h2>Treasury</h2>
+      <div class="sub">Bills are covered first, then the leftover money is assigned. Type into the <em>blue</em> fields; the shaded cells calculate for you.</div>
     </div>
     <div id="alertTreasury"></div>
     <div class="card">
@@ -509,14 +509,14 @@
   <section class="panel" id="goals">
     <div class="section-head">
       <h2>Goals, Funds &amp; Debt Freedom</h2>
-      <div class="sub">Where your Reserves and Equity streams are actually headed — an emergency fund, sinking funds for irregular costs, named savings goals, and a payoff plan that gives you a real debt-free date.</div>
+      <div class="sub">Your emergency fund, savings goals, and debt payoff plan, with a debt-free date.</div>
     </div>
     <div id="alertGoals"></div>
     <div id="allocLedger"></div>
     <div class="card">
       <div class="card-title">⛑️ Emergency Fund</div>
       <hr class="gold-rule">
-      <div class="card-note">The foundation of a provisioned home. Target is set as a chosen number of months of your fixed overhead.</div>
+      <div class="card-note">Money set aside for emergencies. Choose how many months of fixed bills to save.</div>
       <div id="emergencyBox"></div>
     </div>
     <div id="efPriority"></div>
@@ -686,7 +686,7 @@
   <div class="backup-note" id="backupNote"></div>
 </div>
 <footer>
-  <span class="brand">The Provisioned Household</span>
+  <span class="brand">Household COO</span>
   Your numbers are saved privately to your household. Only people you allow to see money can open this page.
   <div class="disc">This tool is provided for personal organization and educational purposes only. It is not financial, investment, tax, or legal advice. Figures are estimates based on the information you enter. Consult a qualified professional before making financial decisions.</div>
   <div style="margin-top:10px;font-size:.66rem;letter-spacing:1px;opacity:.6">VERSION 3.3 · updated Aug 31, 2026</div>
@@ -696,7 +696,7 @@
   <div class="modal">
     <div class="mhead">
       <div class="mono">PH</div>
-      <div class="k">The Provisioned Household</div>
+      <div class="k">Household COO</div>
       <h3>Welcome to your Command Center</h3>
     </div>
     <div class="mbody">
@@ -1511,14 +1511,14 @@ function printPlan(){
   const c=calc();const ef=state.goals.emergency;const efTarget=c.overhead*(+ef.monthsTarget||0);
   const sim=simulateDebts();
   const row=(l,v)=>`<div class="p-row"><span>${l}</span><b>${v}</b></div>`;
-  let html=`<div class="p-head"><div class="k">The Provisioned Household · CFO Command Center</div><h1>Household Financial Plan</h1><div style="font-size:.8rem;color:#888">Generated ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>`;
+  let html=`<div class="p-head"><div class="k">Household COO · CFO Command Center</div><h1>Household Financial Plan</h1><div style="font-size:.8rem;color:#888">Generated ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>`;
   html+=`<div class="p-sec"><h2>Treasury Summary</h2>${row('Total Net Cash Flow',money(c.income))}${row('Fixed Overhead (after pruning)',money(c.overhead))}${row('Reclaimed Capital',money(c.reclaimed))}${row('The Sovereign Margin',money(c.margin))}${row('Status',c.margin>=0?'Balanced & Solvent':'System Deficit')}</div>`;
   html+=`<div class="p-sec"><h2>Strategic Allocations</h2>${['reserves','equity','lifestyle'].map(k=>row(`${ALLOC_META[k].name} (${state.alloc[k]}%)`,`${money(c[k].monthly)}/mo · ${money(c[k].weekly)}/wk`)).join('')}</div>`;
   html+=`<div class="p-sec"><h2>Emergency Fund</h2>${row('Target ('+ef.monthsTarget+' months of overhead)',money0(efTarget))}${row('Currently saved',money0(ef.saved))}${row('Months of expenses covered',(c.overhead>0?ef.saved/c.overhead:0).toFixed(1)+' months')}</div>`;
   if(state.goals.sinking.length)html+=`<div class="p-sec"><h2>Sinking Funds</h2>${state.goals.sinking.map(g=>row(g.name,money0(g.saved)+' of '+money0(g.target))).join('')}</div>`;
   if(state.goals.savings.length)html+=`<div class="p-sec"><h2>Savings Goals</h2>${state.goals.savings.map(g=>row(g.name,money0(g.saved)+' of '+money0(g.target))).join('')}</div>`;
   if(sim.totalDebt>0)html+=`<div class="p-sec"><h2>Debt Payoff Plan (${state.debtStrategy})</h2>${state.debts.map(d=>row(d.name,money0(d.balance)+' @ '+d.apr+'%')).join('')}${row('Debt-free date',sim.capped?'Over 100 years — increase payment':fmtMonthYear(sim.date))}${row('Total interest projected',money0(sim.interest))}</div>`;
-  html+=`<div class="p-disc">This plan is for personal organization and educational purposes only and is not financial, tax, or legal advice. Figures are estimates based on the information entered. Consult a qualified professional before making financial decisions. &copy; The Provisioned Household.</div>`;
+  html+=`<div class="p-disc">This plan is for personal organization and educational purposes only and is not financial, tax, or legal advice. Figures are estimates based on the information entered. Consult a qualified professional before making financial decisions. &copy; Household COO.</div>`;
   document.getElementById('printArea').innerHTML=html;
   window.print();
 }
@@ -1812,7 +1812,7 @@ function printCalendar(){
   }
   document.getElementById('printArea').innerHTML='';
   const pc=document.getElementById('printCal');
-  pc.innerHTML=`<div class="p-head"><div class="k">The Provisioned Household · Household Calendar</div><h1>${MONTHS[m]} ${y}</h1></div><div class="pc-grid">${g}</div><div class="p-disc">Generated ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})} · The Provisioned Household. For personal organization only.</div>`;
+  pc.innerHTML=`<div class="p-head"><div class="k">Household COO · Household Calendar</div><h1>${MONTHS[m]} ${y}</h1></div><div class="pc-grid">${g}</div><div class="p-disc">Generated ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})} · Household COO. For personal organization only.</div>`;
   pc.classList.add('printing');
   window.print();
   setTimeout(()=>pc.classList.remove('printing'),600);
