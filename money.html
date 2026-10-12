@@ -303,7 +303,7 @@
     <div class="mast-title">
       <div class="kicker">Household COO</div>
       <h1>CFO Command Center</h1>
-      <div class="tag">Quiet Stewardship &nbsp;·&nbsp; Systems Integrity &nbsp;·&nbsp; Sovereign Rest</div>
+      <div class="tag">Quiet Stewardship &nbsp;·&nbsp; Systems Integrity &nbsp;·&nbsp; Rest</div>
       <div style="margin-top:7px;font-size:.6rem;letter-spacing:2.5px;color:var(--gold-lt);font-weight:600">VERSION 3.3 · AUG 31, 2026</div>
     </div>
   </div>
@@ -332,13 +332,13 @@
     <div class="stat-grid">
       <div class="stat"><div class="lbl">Net Monthly Cash Flow</div><div class="val" id="dashIncome">$0</div><div class="hint">Total take-home income</div></div>
       <div class="stat"><div class="lbl">Fixed Overhead</div><div class="val" id="dashOverhead">$0</div><div class="hint">Four Walls + expenses, after pruning</div></div>
-      <div class="stat accent"><div class="lbl">The Sovereign Margin</div><div class="val" id="dashMargin">$0</div><div class="hint">True surplus for stewardship</div></div>
+      <div class="stat accent"><div class="lbl">Leftover Money</div><div class="val" id="dashMargin">$0</div><div class="hint">True surplus for stewardship</div></div>
       <div class="stat"><div class="lbl">Reclaimed Capital</div><div class="val" id="dashReclaimed">$0</div><div class="hint">Recovered from pruned subscriptions</div></div>
     </div>
     <div class="card">
       <div class="card-title">Strategic Allocations &amp; Weekly Sweeps <span class="badge">Auto-calculated</span></div>
       <hr class="gold-rule">
-      <div class="card-note">Your Sovereign Margin is divided into three purposeful streams. Adjust the split on the Treasury tab — weekly transfer amounts update instantly.</div>
+      <div class="card-note">Your leftover money is divided into three purposeful streams. Adjust the split on the Treasury tab — weekly transfer amounts update instantly.</div>
       <div class="alloc-grid" id="dashAlloc"></div>
     </div>
     <div class="card">
@@ -470,10 +470,10 @@
       <div class="stat-grid" style="margin-bottom:20px">
         <div class="stat"><div class="lbl">Total Income</div><div class="val" id="engIncome">$0</div></div>
         <div class="stat"><div class="lbl">− Fixed Overhead</div><div class="val" id="engOverhead">$0</div><div class="hint">Four Walls + Recurring Expenses</div></div>
-        <div class="stat accent"><div class="lbl">= Sovereign Margin</div><div class="val" id="engMargin">$0</div></div>
+        <div class="stat accent"><div class="lbl">= Leftover Money</div><div class="val" id="engMargin">$0</div></div>
       </div>
       <div id="engSolvency" class="solvency ok"></div>
-      <div class="card-note" style="margin-top:18px"><strong>Now split your leftover money into three jobs.</strong> After your bills are paid, whatever's left over (your Sovereign Margin above) gets divided three ways, so every dollar has a purpose instead of just disappearing. Type a percentage into each blue box — they only need to add up to 100%. <strong>Never budgeted before? Tap one of these to fill it in for you, then adjust anytime:</strong></div>
+      <div class="card-note" style="margin-top:18px"><strong>Now split your leftover money into three jobs.</strong> After your bills are paid, whatever's left over (Your leftover money above) gets divided three ways, so every dollar has a purpose instead of just disappearing. Type a percentage into each blue box — they only need to add up to 100%. <strong>Never budgeted before? Tap one of these to fill it in for you, then adjust anytime:</strong></div>
       <div class="card-actions" style="margin:0 0 18px">
         <button class="btn btn-ghost btn-sm" onclick="setPreset('starter')" title="Most of your leftover builds a safety net first">🌱 New to this — build a safety net</button>
         <button class="btn btn-ghost btn-sm" onclick="setPreset('debt')" title="Most of your leftover attacks debt">💳 Focused on paying off debt</button>
@@ -1512,7 +1512,7 @@ function printPlan(){
   const sim=simulateDebts();
   const row=(l,v)=>`<div class="p-row"><span>${l}</span><b>${v}</b></div>`;
   let html=`<div class="p-head"><div class="k">Household COO · CFO Command Center</div><h1>Household Financial Plan</h1><div style="font-size:.8rem;color:#888">Generated ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div></div>`;
-  html+=`<div class="p-sec"><h2>Treasury Summary</h2>${row('Total Net Cash Flow',money(c.income))}${row('Fixed Overhead (after pruning)',money(c.overhead))}${row('Reclaimed Capital',money(c.reclaimed))}${row('The Sovereign Margin',money(c.margin))}${row('Status',c.margin>=0?'Balanced & Solvent':'System Deficit')}</div>`;
+  html+=`<div class="p-sec"><h2>Treasury Summary</h2>${row('Total Net Cash Flow',money(c.income))}${row('Fixed Overhead (after pruning)',money(c.overhead))}${row('Reclaimed Capital',money(c.reclaimed))}${row('Leftover Money',money(c.margin))}${row('Status',c.margin>=0?'Balanced & Solvent':'System Deficit')}</div>`;
   html+=`<div class="p-sec"><h2>Strategic Allocations</h2>${['reserves','equity','lifestyle'].map(k=>row(`${ALLOC_META[k].name} (${state.alloc[k]}%)`,`${money(c[k].monthly)}/mo · ${money(c[k].weekly)}/wk`)).join('')}</div>`;
   html+=`<div class="p-sec"><h2>Emergency Fund</h2>${row('Target ('+ef.monthsTarget+' months of overhead)',money0(efTarget))}${row('Currently saved',money0(ef.saved))}${row('Months of expenses covered',(c.overhead>0?ef.saved/c.overhead:0).toFixed(1)+' months')}</div>`;
   if(state.goals.sinking.length)html+=`<div class="p-sec"><h2>Sinking Funds</h2>${state.goals.sinking.map(g=>row(g.name,money0(g.saved)+' of '+money0(g.target))).join('')}</div>`;
