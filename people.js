@@ -2,6 +2,9 @@
 (function () {
   const ROLE = { owner: 'Owner', adult: 'Parent', kid: 'Household member', helper: 'Helper', staff: 'Staff' };
   const mgr = () => S.me && ['owner', 'adult'].includes(S.me.role);
+  const ppcss = document.createElement('style');
+  ppcss.textContent = 'label.pp-chk{display:flex;flex-direction:row;gap:10px;align-items:center;justify-content:flex-start;text-align:left;font-size:15px}label.pp-chk input[type=checkbox]{width:22px;height:22px;min-height:22px;min-width:22px;flex:0 0 22px;margin:0;padding:0}';
+  document.head.appendChild(ppcss);
 
   // Household member type: adult (own private money) or child, 13 and under (parents manage their money).
   // Kept in its own record so it is never overwritten by calendar saves.
@@ -32,6 +35,20 @@
       await writeTypes(t => { t.adult[S.user.id] = true; });
     }
   };
+
+  // Sends the invitation email. Returns 'sent', 'exists', 'limit' or 'failed'.
+  async function sendInvite(email) {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      const r = await fetch('/api/invite', { method: 'POST', headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + (session ? session.access_token : '') }, body: JSON.stringify({ email, household_id: S.me.household_id }) });
+      const j = await r.json().catch(() => ({}));
+      return j.status || 'failed';
+    } catch (e) { return 'failed'; }
+  }
+  const inviteMsg = (st, who, email) => st === 'sent' ? 'An invitation email was sent to ' + email + '. ' + who + ' opens it, taps the button, and chooses a password.'
+    : st === 'limit' ? who + ' is added, but the email could not be sent right now because too many were sent. Wait a few minutes and tap Send email again.'
+    : st === 'exists' ? who + ' already has an account. They open household-coo.vercel.app and sign in with ' + email + '.'
+    : who + ' is added, but the email did not send. Tap Send email again, or tell them to open household-coo.vercel.app, tap Create an account, and use ' + email + '.';
 
   window.loadInvites = async function () {
     try {
@@ -65,15 +82,15 @@
         '<button class="btn ghost" style="min-height:32px;padding:0 12px" data-ppdel="' + id + '">Remove</button></div>' +
         '<label for="r_' + id + '">Role</label><select id="r_' + id + '" data-pprole="' + id + '">' + roleOpts(m.role) + '</select>' +
         (m.role === 'kid' ? '<label for="t_' + id + '">Type</label><select id="t_' + id + '" data-pptype="' + id + '"><option value="adult"' + (isAdultRec(m) ? ' selected' : '') + '>Adult</option><option value="child"' + (isAdultRec(m) ? '' : ' selected') + '>Child, 13 and under</option></select>' : '') +
-        (m.role === 'adult' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" data-ppmoney="' + id + '"' + (m.can_see_money ? ' checked' : '') + '> Can see money</label>'
+        (m.role === 'adult' ? '<label class="pp-chk" style="margin-top:10px"><input type="checkbox" data-ppmoney="' + id + '"' + (m.can_see_money ? ' checked' : '') + '> Can see money</label>'
           : (m.role === 'kid' && isAdultRec(m) ? '<p class="note" style="margin:8px 0 0">Has their own private Money and Receipts. You cannot see them.</p>'
           : (m.role === 'kid' ? '<p class="note" style="margin:8px 0 0">Their money is in Members\' money. You manage it.</p>' : '<p class="note" style="margin:8px 0 0">Cannot see money.</p>'))) +
-        (m.role !== 'adult' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" data-ppadd="' + id + '"' + (S.cal.perms[id] ? ' checked' : '') + '> Can add to the Command Center for everyone</label>' : '') +
-(m.role !== 'adult' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" data-pptv="' + id + '"' + ((S.cal.tv || {})[id] ? ' checked' : '') + '> This is the TV screen account. It opens only the family board and cannot leave it.</label>' : '') +
+        (m.role !== 'adult' ? '<label class="pp-chk" style="margin-top:10px"><input type="checkbox" data-ppadd="' + id + '"' + (S.cal.perms[id] ? ' checked' : '') + '> Can add to the Command Center for everyone</label>' : '') +
+(m.role !== 'adult' ? '<label class="pp-chk" style="margin-top:10px"><input type="checkbox" data-pptv="' + id + '"' + ((S.cal.tv || {})[id] ? ' checked' : '') + '> This is the TV screen account. It opens only the family board and cannot leave it.</label>' : '') +
         '</div>';
     }).join('');
     const pend = S.invites.length ? '<div class="card" style="margin-top:18px"><h2>Waiting to sign in</h2><p class="note">They join your household the first time they sign in with this email.</p>' +
-      S.invites.map(i => '<div class="row"><div style="flex:1"><div style="font-weight:600">' + esc(i.display_name || i.email) + '</div><div class="note">' + esc(i.email) + ' · ' + esc(ROLE[i.role] || i.role) + '</div></div><button class="btn ghost" style="min-height:32px;padding:0 12px" data-ppcancel="' + i.id + '">Cancel</button></div>').join('') + '</div>' : '';
+      S.invites.map(i => '<div class="row"><div style="flex:1"><div style="font-weight:600">' + esc(i.display_name || i.email) + '</div><div class="note">' + esc(i.email) + ' · ' + esc(ROLE[i.role] || i.role) + '</div></div><button class="btn ghost" style="min-height:32px;padding:0 12px;margin-right:8px" data-ppresend="' + esc(i.email) + '" data-ppname="' + esc(i.display_name || i.email) + '">Send email</button><button class="btn ghost" style="min-height:32px;padding:0 12px" data-ppcancel="' + i.id + '">Cancel</button></div>').join('') + '</div>' : '';
     const msg = S.ppMsg ? '<div class="card" style="margin-top:18px;border-left:4px solid var(--gold)"><p style="margin:0">' + esc(S.ppMsg) + '</p></div>' : '';
     const form = '<div class="card" style="margin-top:18px"><h2>Add a person</h2>' +
       '<label for="pp_name">Name</label><input id="pp_name" placeholder="First name">' +
@@ -81,7 +98,7 @@
       '<label for="pp_role">Role</label><select id="pp_role">' + roleOpts('kid') + '</select>' +
       '<div id="pp_trow"><label for="pp_type">Is this person an adult or a child?</label><select id="pp_type"><option value="adult">Adult</option><option value="child">Child, 13 and under</option></select>' +
       '<p class="note" id="pp_tnote"></p></div>' +
-      '<label id="pp_mrow" style="display:none;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="pp_money"> Can see money</label>' +
+      '<label id="pp_mrow" class="pp-chk" style="display:none;margin-top:10px"><input type="checkbox" id="pp_money"> Can see money</label>' +
       '<p class="note">Helpers and staff never see money.</p>' +
       '<div style="margin-top:12px"><button class="btn" id="pp_add">Add person</button></div></div>';
     const ex = 'yourname+tv@gmail.com';
@@ -120,9 +137,8 @@ return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>People.</h1><div cl
       const { data, error } = await sb.rpc('invite_member', { h: S.me.household_id, p_email: email, p_name: name, p_role: role, p_money: role === 'adult' && $$('#pp_money').checked });
       add.disabled = false;
       if (error) { alert(error.message); return; }
-      S.ppMsg = data === 'added'
-        ? (name || email) + ' is now in your household.'
-        : (name || email) + ' is added. Tell them to open household-coo.vercel.app and sign in with ' + email + '. They will land in your household.';
+      if (data === 'added') S.ppMsg = (name || email) + ' is now in your household.';
+      else { S.ppMsg = 'Sending the invitation email.'; const st = await sendInvite(email); S.ppMsg = inviteMsg(st, name || email, email); }
       await reloadMembers();
       if (isAdultKid) {
         const fresh = S.members.filter(x => !before.includes(x.user_id)).map(x => x.user_id);
@@ -162,6 +178,11 @@ document.querySelectorAll('[data-ppdel]').forEach(b => b.onclick = async () => {
       const { error } = await sb.rpc('remove_member', { h: S.me.household_id, u: b.dataset.ppdel });
       if (error) alert(error.message);
       await reloadMembers(); render();
+    });
+    document.querySelectorAll('[data-ppresend]').forEach(b => b.onclick = async () => {
+      b.disabled = true; b.textContent = 'Sending';
+      const st = await sendInvite(b.dataset.ppresend);
+      S.ppMsg = inviteMsg(st, b.dataset.ppname, b.dataset.ppresend); render();
     });
     document.querySelectorAll('[data-ppcancel]').forEach(b => b.onclick = async () => {
       await sb.from('household_invites').delete().eq('id', b.dataset.ppcancel);
