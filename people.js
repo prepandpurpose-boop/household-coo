@@ -110,8 +110,8 @@
 const tvHelp = '<div class="card" style="margin-top:18px"><h2>Set up a TV screen</h2>' +
 '<p class="note">Show the family board on a TV without putting a parent account on it. The TV gets its own sign-in that can only see the board.</p>' +
 '<ol style="padding-left:20px;line-height:1.6;margin:10px 0">' +
-'<li><b>Add a person</b> in the form above. Name: TV. Role: Staff. Email: use your own email and type +tv before the @ sign. For example, if your email is yourname@gmail.com, the TV email is <b>' + esc(ex) + '</b>. You do not need to create a new email. Mail sent to that address arrives in your regular inbox.</li>' +
-'<li><b>On the TV</b>, open household-coo.vercel.app. Tap Create an account. Type the same TV email and make a password. Write the password down.</li>' +
+'<li><b>Add a person</b> in the form above. Name: TV. Role: Staff. Email: use your own email and type +tv before the @ sign. For example, if your email is yourname@gmail.com, the TV email is <b>' + esc(ex) + '</b>. You do not need to create a new email. Type a password of at least 8 characters in the Temporary password box. Write the password down.</li>' +
+'<li><b>On the TV</b>, open household-coo.vercel.app. Do not tap Create an account. Type the TV email and the same password you typed in step 1, then tap Sign in. If you forget the password, tap Set password on the TV row under Your household to make a new one.</li>' +
 '<li><b>Back on this screen</b>, find TV under Your household and tick This is the TV screen account.</li>' +
 '<li><b>Reload the TV.</b> It shows the family board only. It cannot open anything else.</li></ol>' +
 '<p class="note">The + sign works with Gmail and Google Workspace email. If your email provider does not accept it, use a different email address that you can receive mail at.</p></div>';
