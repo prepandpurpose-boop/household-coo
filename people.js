@@ -36,8 +36,20 @@
     }
   };
 
-  // The invitation a parent sends by text message. Nothing is emailed by the app.
-  const inviteText = (name, email) => 'Hi ' + (name || '') + '! You are invited to ' + ((S.hh && S.hh.name) || 'our household') + ' on Household COO.\n\n1. Open https://household-coo.vercel.app\n2. Tap Create an account\n3. Type this email: ' + email + '\n4. Make a password with at least 8 characters\n\nThen you are in.';
+  // The message a parent sends by text. The parent creates the sign-in, so the person only signs in.
+  const inviteText = (name, email, pw) => 'Hi ' + (name || '') + '! You are in ' + ((S.hh && S.hh.name) || 'our household') + ' on Household COO.\n\n1. Open https://household-coo.vercel.app\n2. Tap Sign in\n3. Email: ' + email + '\n4. Password: ' + pw + '\n\nDo not create an account. Just sign in.';
+  // Creates the sign-in for a waiting person. Returns 'created', 'updated', 'exists' or 'failed'.
+  async function makeLogin(email, password) {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      const r = await fetch('/api/create-member', { method: 'POST', headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + (session ? session.access_token : '') }, body: JSON.stringify({ email, password, household_id: S.me.household_id }) });
+      const j = await r.json().catch(() => ({}));
+      return j.status || 'failed';
+    } catch (e) { return 'failed'; }
+  }
+  const loginMsg = (st, who) => (st === 'created' || st === 'updated') ? ''
+    : st === 'exists' ? who + ' already has an account of their own. They sign in with their own password.'
+    : 'The sign-in could not be created. Please try again.';
   async function copyText(t) {
     try { await navigator.clipboard.writeText(t); return true; } catch (e) { try { window.prompt('Copy this invitation, then paste it into a message:', t); return true; } catch (e2) { return false; } }
   }
@@ -82,7 +94,7 @@
         '</div>';
     }).join('');
     const pend = S.invites.length ? '<div class="card" style="margin-top:18px"><h2>Waiting to sign in</h2><p class="note">They join your household the first time they sign in with this email.</p>' +
-      S.invites.map(i => '<div class="row"><div style="flex:1"><div style="font-weight:600">' + esc(i.display_name || i.email) + '</div><div class="note">' + esc(i.email) + ' · ' + esc(ROLE[i.role] || i.role) + '</div></div><button class="btn ghost" style="min-height:32px;padding:0 12px;margin-right:8px" data-ppresend="' + esc(i.email) + '" data-ppname="' + esc(i.display_name || '') + '">Copy invitation</button><button class="btn ghost" style="min-height:32px;padding:0 12px" data-ppcancel="' + i.id + '">Cancel</button></div>').join('') + '</div>' : '';
+      S.invites.map(i => '<div class="row"><div style="flex:1"><div style="font-weight:600">' + esc(i.display_name || i.email) + '</div><div class="note">' + esc(i.email) + ' · ' + esc(ROLE[i.role] || i.role) + '</div></div><button class="btn ghost" style="min-height:32px;padding:0 12px;margin-right:8px" data-ppresend="' + esc(i.email) + '" data-ppname="' + esc(i.display_name || '') + '">Set password</button><button class="btn ghost" style="min-height:32px;padding:0 12px" data-ppcancel="' + i.id + '">Cancel</button></div>').join('') + '</div>' : '';
     const msg = S.ppMsg ? '<div class="card" style="margin-top:18px;border-left:4px solid var(--gold)"><p style="margin:0">' + esc(S.ppMsg) + '</p></div>' : '';
     const form = '<div class="card" style="margin-top:18px"><h2>Add a person</h2>' +
       '<label for="pp_name">Name</label><input id="pp_name" placeholder="First name">' +
@@ -90,6 +102,7 @@
       '<label for="pp_role">Role</label><select id="pp_role">' + roleOpts('kid') + '</select>' +
       '<div id="pp_trow"><label for="pp_type">Is this person an adult or a child?</label><select id="pp_type"><option value="adult">Adult</option><option value="child">Child, 13 and under</option></select>' +
       '<p class="note" id="pp_tnote"></p></div>' +
+      '<label for="pp_pw">Temporary password (at least 8 characters)</label><input id="pp_pw" type="text" autocomplete="off" placeholder="You give this to them. They sign in with it.">' +
       '<label id="pp_mrow" class="pp-chk" style="display:none;margin-top:10px"><input type="checkbox" id="pp_money"> Can see money</label>' +
       '<p class="note">Helpers and staff never see money.</p>' +
       '<div style="margin-top:12px"><button class="btn" id="pp_add">Add person</button></div></div>';
@@ -123,14 +136,20 @@ return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>People.</h1><div cl
     const add = $$('#pp_add');
     if (add) add.onclick = async () => {
       const email = $$('#pp_email').value.trim(), name = $$('#pp_name').value.trim(), role = $$('#pp_role').value;
+      const pw = $$('#pp_pw').value;
       if (!email) { alert('Type their email.'); return; }
+      if (pw.length < 8) { alert('Type a temporary password with at least 8 characters.'); return; }
       add.disabled = true;
       const before = S.members.map(x => x.user_id), isAdultKid = role === 'kid' && $$('#pp_type').value === 'adult';
       const { data, error } = await sb.rpc('invite_member', { h: S.me.household_id, p_email: email, p_name: name, p_role: role, p_money: role === 'adult' && $$('#pp_money').checked });
       add.disabled = false;
       if (error) { alert(error.message); return; }
       if (data === 'added') S.ppMsg = (name || email) + ' is now in your household.';
-      else S.ppMsg = (name || email) + ' is added. Tap Copy invitation under Waiting to sign in, then paste it into a text message to them.';
+      else {
+        const st = await makeLogin(email, pw), bad = loginMsg(st, name || email);
+        if (bad) S.ppMsg = bad;
+        else { const ok = await copyText(inviteText(name, email, pw)); S.ppMsg = (name || email) + ' is added and can sign in now. ' + (ok ? 'The message to send them is copied. Paste it into a text message.' : 'Send them the email and password.'); }
+      }
       await reloadMembers();
       if (isAdultKid) {
         const fresh = S.members.filter(x => !before.includes(x.user_id)).map(x => x.user_id);
@@ -172,8 +191,13 @@ document.querySelectorAll('[data-ppdel]').forEach(b => b.onclick = async () => {
       await reloadMembers(); render();
     });
     document.querySelectorAll('[data-ppresend]').forEach(b => b.onclick = async () => {
-      const ok = await copyText(inviteText(b.dataset.ppname, b.dataset.ppresend));
-      S.ppMsg = ok ? 'Invitation copied. Paste it into a text message to ' + (b.dataset.ppname || b.dataset.ppresend) + '.' : 'Could not copy. Try again.';
+      const pw = window.prompt('Type a temporary password for ' + (b.dataset.ppname || b.dataset.ppresend) + ' (at least 8 characters). You give it to them.');
+      if (pw === null) return;
+      if (pw.length < 8) { alert('The password needs at least 8 characters.'); return; }
+      b.disabled = true;
+      const st = await makeLogin(b.dataset.ppresend, pw), bad = loginMsg(st, b.dataset.ppname || b.dataset.ppresend);
+      if (bad) S.ppMsg = bad;
+      else { const ok = await copyText(inviteText(b.dataset.ppname, b.dataset.ppresend, pw)); S.ppMsg = 'Done. ' + (b.dataset.ppname || b.dataset.ppresend) + ' can sign in now. ' + (ok ? 'The message to send them is copied. Paste it into a text message.' : 'Send them the email and password.'); }
       render();
     });
     document.querySelectorAll('[data-ppcancel]').forEach(b => b.onclick = async () => {
