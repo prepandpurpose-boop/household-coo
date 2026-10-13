@@ -143,7 +143,7 @@
     // Tithe: statements only show it if it was paid. Offer 10% of regular income as a starting line, editable.
     const hasTithe = bills.some(b => /tith|church|offering/i.test(String(b.name || '')) || b.tier === '10% Tithe');
     if (!hasTithe && inc.length) {
-      const mult = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1 };
+      const mult = { weekly: 4, biweekly: 2, monthly: 1 };
       const monthly = inc.reduce((t, r) => t + num(r.amount) * (mult[r.freq] || 1), 0);
       if (monthly > 0) {
         bills.unshift({ name: 'Tithe (10%)', monthlyCost: Math.round(monthly * 10) / 100, dueDay: 1, kind: 'wall', tier: '10% Tithe', variable: false });

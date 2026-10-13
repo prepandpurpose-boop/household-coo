@@ -110,7 +110,7 @@
   }
 
   function goalMonthly(list, g) {
-    if (+g.weekly > 0) return +g.weekly * 52 / 12;
+    if (+g.weekly > 0) return +g.weekly * 4;
     const date = list === 'sinking' ? g.due : g.date;
     if (!date) return 0;
     const mo = monthsUntil(date);
@@ -132,7 +132,7 @@
     return all.size ? Math.max(0, Math.round(tot / all.size)) : 0;
   }
   function checksPerMonth() {
-    const f = r => r.freq === 'weekly' ? 52 / 12 : r.freq === 'biweekly' ? 26 / 12 : 1;
+    const f = r => r.freq === 'weekly' ? 4 : r.freq === 'biweekly' ? 2 : 1;
     const rows = state.income.filter(r => (+r.amount || 0) > 0);
     const prim = rows.filter(r => r.type !== 'Secondary/Side-Hustle');
     return (prim.length ? prim : rows).reduce((t, r) => t + f(r), 0);
@@ -183,7 +183,7 @@
     const steps = stepsFor({ planned: M, amt: M, monthly: true }, null, M);
     const order = ['First', 'Your Four Walls', 'Other recurring expenses', 'Savings and goals'];
     const FN = { weekly: 'every week', biweekly: 'every 2 weeks', monthly: 'every month' };
-    const two = x => '<span class="a">' + money0(x * 12 / 52) + ' a week<br><span class="n">' + money0(x) + ' a month</span></span>';
+    const two = x => '<span class="a">' + money0(x / 4) + ' a week<br><span class="n">' + money0(x) + ' a month</span></span>';
     const inc = state.income.filter(r => (+r.amount || 0) > 0).map(r => '<div class="ppstep"><span class="t">' + E(r.source || 'Income') + ' <span class="n">' + money0(+r.amount) + ' ' + (FN[r.freq || 'monthly'] || '') + '</span></span>' + two(monthlyEquivalent(r)) + '</div>').join('');
     let used = 0;
     const rows = order.map(g => {
@@ -194,11 +194,11 @@
     }).join('');
     const free = Math.round(M) - used;
     return '<div class="card"><div class="card-title">All your money coming in, and what it covers</div>' +
-      '<div class="card-note">All your expected pay is added together here. Weekly pay is counted as 52 weeks divided by 12 months. Do the steps in order. Anything that does not fit is cut from the bottom of the list first.</div>' +
+      '<div class="card-note">All your expected pay is added together here. Weekly pay is counted as 4 weeks a month, and pay every 2 weeks as 2 checks a month. Do the steps in order. Anything that does not fit is cut from the bottom of the list first.</div>' +
       '<div style="margin:10px 0 2px;font-weight:700;color:var(--green)">Money coming in</div>' + inc +
-      '<div class="ppfree"><span>Total coming in</span><span>' + money0(M * 12 / 52) + ' a week · ' + money0(M) + ' a month</span></div>' +
+      '<div class="ppfree"><span>Total coming in</span><span>' + money0(M / 4) + ' a week · ' + money0(M) + ' a month</span></div>' +
       rows +
-      '<div class="ppfree' + (free < 0 ? ' neg' : '') + '"><span>' + (free < 0 ? 'Short by this amount' : 'Left over for everyday spending') + '</span><span>' + money0(Math.abs(free) * 12 / 52) + ' a week · ' + money0(Math.abs(free)) + ' a month</span></div></div>';
+      '<div class="ppfree' + (free < 0 ? ' neg' : '') + '"><span>' + (free < 0 ? 'Short by this amount' : 'Left over for everyday spending') + '</span><span>' + money0(Math.abs(free) / 4) + ' a week · ' + money0(Math.abs(free)) + ' a month</span></div></div>';
   }
   function weeksList(n) {
     const t = today0(), st = t, en = addDays(st, n * 7), ws = [];
@@ -447,7 +447,7 @@
     const M = calc().income;
     el.querySelectorAll('.goalrow').forEach((row, i) => {
       const g = (state.goals[list] || [])[i]; if (!g) return;
-      const w = M > 0 ? goalMonthly(list, g) * 12 / 52 : 0;
+      const w = M > 0 ? goalMonthly(list, g) / 4 : 0;
       row.insertAdjacentHTML('beforeend', '<div class="goalmeta" style="margin-top:6px"><span>Pay Plan puts in <strong>' + money0(w) + ' a week</strong></span><span>Or a set amount each week $ <input type="number" min="0" step="1" data-gw="' + i + '" value="' + (g.weekly || '') + '" style="width:80px"></span></div>');
     });
     el.querySelectorAll('input[data-gw]').forEach(inp => inp.onchange = () => {
