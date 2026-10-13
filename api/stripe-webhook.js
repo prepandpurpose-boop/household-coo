@@ -1,4 +1,4 @@
-// Household COO: Stripe tells us who has paid. Verifies Stripe's signature, then records the household's plan status.
+// Household COO: Stripe tells us who has paid. Verifies Stripe's signature, then records the household's plan status and next billing date.
 const crypto = require('crypto');
 
 const SUPABASE_URL = 'https://utqgmylsdzoqovadrwbg.supabase.co';
@@ -35,6 +35,25 @@ async function db(path, method, body, extra) {
   if (!r.ok) { console.log('db error', r.status, (await r.text()).slice(0, 200)); throw new Error('db'); }
 }
 
+// Stripe sends the end of the current billing period as seconds since 1970.
+// Newer Stripe versions put it on the subscription item instead of the subscription.
+function periodEnd(sub) {
+  const secs = sub && (sub.current_period_end || (sub.items && sub.items.data && sub.items.data[0] && sub.items.data[0].current_period_end));
+  return secs ? new Date(Number(secs) * 1000).toISOString() : null;
+}
+
+// After checkout, ask Stripe for the subscription so the next billing date is saved right away.
+// Needs STRIPE_SECRET_KEY in Vercel. If it is not set, the date is saved when Stripe sends its next subscription event.
+async function fetchPeriodEnd(subscriptionId) {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key || !subscriptionId) return null;
+  try {
+    const r = await fetch('https://api.stripe.com/v1/subscriptions/' + encodeURIComponent(subscriptionId), { headers: { Authorization: 'Bearer ' + key } });
+    if (!r.ok) return null;
+    return periodEnd(await r.json());
+  } catch (e) { return null; }
+}
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
   try {
@@ -46,13 +65,16 @@ module.exports = async (req, res) => {
 
     if (ev.type === 'checkout.session.completed' && o.mode === 'subscription' && UUID.test(o.client_reference_id || '')) {
       const plan = (o.amount_total || 0) >= 99700 ? 'yearly' : 'monthly';
-      await db('subscriptions?on_conflict=household_id', 'POST',
-        { household_id: o.client_reference_id, status: 'active', stripe_customer: o.customer || null, plan, updated_at: new Date().toISOString() },
-        { Prefer: 'resolution=merge-duplicates,return=minimal' });
-    } else if ((ev.type === 'customer.subscription.updated' || ev.type === 'customer.subscription.deleted') && o.customer) {
+      const row = { household_id: o.client_reference_id, status: 'active', stripe_customer: o.customer || null, plan, updated_at: new Date().toISOString() };
+      const end = await fetchPeriodEnd(o.subscription);
+      if (end) row.current_period_end = end;
+      await db('subscriptions?on_conflict=household_id', 'POST', row, { Prefer: 'resolution=merge-duplicates,return=minimal' });
+    } else if ((ev.type === 'customer.subscription.created' || ev.type === 'customer.subscription.updated' || ev.type === 'customer.subscription.deleted') && o.customer) {
       const status = ev.type === 'customer.subscription.deleted' ? 'canceled' : (o.status || 'active');
-      await db('subscriptions?stripe_customer=eq.' + encodeURIComponent(o.customer), 'PATCH',
-        { status, updated_at: new Date().toISOString() }, { Prefer: 'return=minimal' });
+      const patch = { status, updated_at: new Date().toISOString() };
+      const end = periodEnd(o);
+      if (end) patch.current_period_end = end;
+      await db('subscriptions?stripe_customer=eq.' + encodeURIComponent(o.customer), 'PATCH', patch, { Prefer: 'return=minimal' });
     }
     return res.status(200).json({ received: true });
   } catch (e) {
