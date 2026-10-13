@@ -84,11 +84,11 @@
       '<label id="pp_mrow" style="display:none;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="pp_money"> Can see money</label>' +
       '<p class="note">Helpers and staff never see money.</p>' +
       '<div style="margin-top:12px"><button class="btn" id="pp_add">Add person</button></div></div>';
-    const em = (S.user && S.user.email) || '', ex = em.includes('@') ? em.replace('@', '+tv@') : 'yourname+tv@gmail.com';
+    const ex = 'yourname+tv@gmail.com';
 const tvHelp = '<div class="card" style="margin-top:18px"><h2>Set up a TV screen</h2>' +
 '<p class="note">Show the family board on a TV without putting a parent account on it. The TV gets its own sign-in that can only see the board.</p>' +
 '<ol style="padding-left:20px;line-height:1.6;margin:10px 0">' +
-'<li><b>Add a person</b> in the form above. Name: TV. Role: Staff. Email: use your own email and type +tv before the @ sign. Your TV email would be <b>' + esc(ex) + '</b>. You do not need to create a new email. Mail sent to that address arrives in your regular inbox.</li>' +
+'<li><b>Add a person</b> in the form above. Name: TV. Role: Staff. Email: use your own email and type +tv before the @ sign. For example, if your email is yourname@gmail.com, the TV email is <b>' + esc(ex) + '</b>. You do not need to create a new email. Mail sent to that address arrives in your regular inbox.</li>' +
 '<li><b>On the TV</b>, open household-coo.vercel.app. Tap Create an account. Type the same TV email and make a password. Write the password down.</li>' +
 '<li><b>Back on this screen</b>, find TV under Your household and tick This is the TV screen account.</li>' +
 '<li><b>Reload the TV.</b> It shows the family board only. It cannot open anything else.</li></ol>' +

@@ -26,7 +26,7 @@
   css.textContent = [
     '.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}',
     '.cal-h{font-size:12px;color:var(--mute);text-align:center;padding:4px 0;font-weight:600}',
-    '.cal-d{min-height:78px;padding:5px;border:1px solid var(--line);border-radius:10px;background:#fff;text-align:left;cursor:pointer;overflow:hidden;display:block;width:100%}',
+    '.cal-d{min-height:92px;padding:5px;border:1px solid var(--line);border-radius:10px;background:#fff;text-align:left;cursor:pointer;overflow:hidden;display:block;width:100%}',
     '.cal-d.out{background:#f6f4ec;color:var(--mute)}.cal-d.today{border:2px solid var(--gold)}.cal-d.sel{background:#fff7dc}',
     '.cal-d b{font-size:13px}.cal-t{display:block;font-size:11px;line-height:1.25;margin-top:2px;padding:1px 4px;border-radius:5px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
     '.cal-more{font-size:11px;color:var(--mute);margin-top:2px}',
@@ -231,10 +231,12 @@ function myMoney() {
     const { y, m } = S.calM, first = new Date(y, m, 1), start = new Date(y, m, 1 - first.getDay()), t = todayISO();
     let cells = '';
     for (let i = 0; i < 42; i++) {
-      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i), ds = iso(d), its = itemsOn(ds);
+      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i), ds = iso(d);
       if (i >= 35 && d.getMonth() !== m) break;
-      const tags = its.slice(0, 2).map(it => '<span class="cal-t" style="background:' + (TYPES[it.type] || ['', '#666'])[1] + '">' + esc(it.title) + '</span>').join('');
-      cells += '<button class="cal-d' + (d.getMonth() !== m ? ' out' : '') + (ds === t ? ' today' : '') + (ds === S.calSel ? ' sel' : '') + '" data-day="' + ds + '"><b>' + d.getDate() + '</b>' + tags + (its.length > 2 ? '<div class="cal-more">+' + (its.length - 2) + ' more</div>' : '') + '</button>';
+      // Meals from the Kitchen meal calendar show on the month, the same as on the TV board.
+      const lines = mealsOn(ds).map(x => ({ c: '#2f7d4f', t: x.slot[0].toUpperCase() + ' ' + (x.m.title || 'Meal') })).concat(itemsOn(ds).map(it => ({ c: (TYPES[it.type] || ['', '#666'])[1], t: it.title })));
+      const tags = lines.slice(0, 3).map(l => '<span class="cal-t" style="background:' + l.c + '">' + esc(l.t) + '</span>').join('');
+      cells += '<button class="cal-d' + (d.getMonth() !== m ? ' out' : '') + (ds === t ? ' today' : '') + (ds === S.calSel ? ' sel' : '') + '" data-day="' + ds + '"><b>' + d.getDate() + '</b>' + tags + (lines.length > 3 ? '<div class="cal-more">+' + (lines.length - 3) + ' more</div>' : '') + '</button>';
     }
     const sel = S.calSel, selItems = itemsOn(sel);
     const selLabel = DN[pd(sel).getDay()] + ', ' + MN[pd(sel).getMonth()] + ' ' + pd(sel).getDate();
@@ -253,7 +255,7 @@ function myMoney() {
     return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>Command Center.</h1><div class="rule"></div>' + calToday() + myMoney() +
       '<div class="card"><div class="cal-nav"><button class="btn ghost" data-cm="-1">&#8249;</button><h2 style="min-width:190px">' + MN[m] + ' ' + y + '</h2><button class="btn ghost" data-cm="1">&#8250;</button><button class="btn ghost" data-cm="0">Today</button></div>' +
       '<div class="cal-grid">' + DN.map(d => '<div class="cal-h">' + d + '</div>').join('') + cells + '</div></div>' +
-      '<div class="card" style="margin-top:18px"><h2>' + selLabel + '</h2>' + (selItems.map(it => rowHtml(it, sel, false)).join('') || '<p class="note">Nothing on this day.</p>') + '</div>' + add + perm;
+      '<div class="card" style="margin-top:18px"><h2>' + selLabel + '</h2>' + ((selItems.map(it => rowHtml(it, sel, false)).join('') + mealsHtml(sel)) || '<p class="note">Nothing on this day.</p>') + '</div>' + add + perm;
   };
 
   window.calBind = function () {
