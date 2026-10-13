@@ -72,6 +72,8 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const sb=supabase.createClient(COO_CONFIG.SUPABASE_URL,COO_CONFIG.SUPABASE_PUBLISHABLE_KEY);
 let S={user:null,hh:null,me:null,members:[],tasks:[],page:'home',kdata:null};
+// A person who opened their invitation email arrives signed in, with no password yet. They choose one first.
+let INVITE=/type=invite/.test(location.hash);
 
 // ---------- screens ----------
 function friendly(e){
@@ -120,9 +122,9 @@ $('#go').disabled=false;
 $('#go').onclick=submit;
 ['em','pw'].forEach(id=>{const el=document.getElementById(id);if(el)el.onkeydown=ev=>{if(ev.key==='Enter')submit()}});
 }
-function newPassword(){
+function newPassword(first){
 $('#root').innerHTML='<div class="center"><div class="card">'
-+'<div class="eyebrow">Household COO · by Provision House</div><h1>Choose a new password.</h1><div class="rule"></div>'
++'<div class="eyebrow">Household COO · by Provision House</div><h1>'+(first?'Choose your password.':'Choose a new password.')+'</h1><div class="rule"></div>'
 +'<label for="np">New password (at least 8 characters)</label><input id="np" type="password" autocomplete="new-password">'
 +'<div style="margin-top:16px"><button class="btn" id="go">Save password</button></div><div class="err" id="msg"></div></div></div>';
 $('#go').onclick=async()=>{
@@ -132,6 +134,7 @@ $('#go').disabled=true;
 const {error}=await sb.auth.updateUser({password:p});
 if(error){$('#msg').textContent=friendly(error);$('#go').disabled=false;return}
 history.replaceState(null,'',location.pathname+location.search);
+INVITE=false;
 load();
 };
 }
@@ -160,6 +163,7 @@ async function load(){
   const {data:{session}}=await sb.auth.getSession();
   if(!session){signIn();return}
   S.user=session.user;
+  if(INVITE){newPassword(true);return}
   try{await sb.rpc('claim_invites')}catch(e){console.warn(e)}
   const {data:mem,error}=await sb.from('household_members').select('*').eq('user_id',S.user.id);
   if(error){signIn(friendly(error));return}
