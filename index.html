@@ -139,7 +139,7 @@ function createHousehold(){
   $('#root').innerHTML=`<div class="center"><div class="card">
   <div class="eyebrow">First time here</div><h1>Name your household.</h1><div class="rule"></div>
   <label for="hn">Household name</label><input id="hn" placeholder="The Smith Household">
-  <label for="yn">Your name</label><input id="yn" placeholder="Vanessa">
+  <label for="yn">Your name</label><input id="yn" placeholder="First name">
   <div style="margin-top:16px"><button class="btn" id="mk">Create it</button></div><div class="err" id="msg"></div></div></div>`;
   $('#mk').onclick=async()=>{
     if($('#mk').disabled)return;$('#mk').disabled=true;
