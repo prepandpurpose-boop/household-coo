@@ -422,7 +422,7 @@
       <div class="card-note">One box, one entry per income source. Type what you actually receive each paycheck, how often it lands, and one real pay date — that's it. The monthly total, the Calendar, and the Paycheck Planner all calculate themselves from those three numbers; you never have to convert anything in your head.</div>
       <div class="tbl-scroll">
         <table id="incomeTable">
-          <thead><tr><th style="min-width:170px">Cash Flow Source</th><th style="width:120px">Net Amount</th><th style="width:150px">Frequency</th><th style="width:160px">A Real Pay Date</th><th style="width:110px" title="Weekly = amount × 52 ÷ 12. Biweekly = amount × 26 ÷ 12. A month isn't exactly 4 or 2 pay periods — some months land an extra paycheck, so this is the true year-round average, not amount × 4.">≈ Monthly ⓘ</th><th style="width:170px">Source Type</th><th style="width:44px"></th></tr></thead>
+          <thead><tr><th style="min-width:170px">Cash Flow Source</th><th style="width:120px">Net Amount</th><th style="width:150px">Frequency</th><th style="width:160px">A Real Pay Date</th><th style="width:110px" title="Weekly = amount × 4. Every 2 weeks = amount × 2. A month is counted as 4 weekly pay periods.">≈ Monthly ⓘ</th><th style="width:170px">Source Type</th><th style="width:44px"></th></tr></thead>
           <tbody></tbody>
           <tfoot><tr><td class="foot-lbl">Total Net Cash Flow</td><td colspan="3"></td><td class="foot-val" id="incomeTotal">$0</td><td colspan="2"></td></tr></tfoot>
         </table>
@@ -893,8 +893,8 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
 }));
 function monthlyEquivalent(r){
   const amt=+r.amount||0;
-  if(r.freq==='weekly')return amt*52/12;
-  if(r.freq==='biweekly')return amt*26/12;
+  if(r.freq==='weekly')return amt*4;
+  if(r.freq==='biweekly')return amt*2;
   return amt; // monthly (or unset — treated as an already-monthly figure)
 }
 function calc(){
@@ -903,7 +903,7 @@ function calc(){
   const overhead=state.overhead.reduce((s,r)=>s+(+r.cost||0),0)-reclaimed;
   const margin=income-overhead;
   const a=state.alloc;
-  const mk=p=>{const m=margin*(p/100);return{monthly:m,weekly:m*12/52};};
+  const mk=p=>{const m=margin*(p/100);return{monthly:m,weekly:m/4};};
   return{income,reclaimed,overhead,margin,reserves:mk(a.reserves),equity:mk(a.equity),lifestyle:mk(a.lifestyle)};
 }
 const ALLOC_META={
@@ -1148,7 +1148,7 @@ function primaryFreq(){
   state.income.forEach(r=>{const m=monthlyEquivalent(r);if(m>bestAmt){bestAmt=m;best=r.freq||'monthly';}});
   return best;
 }
-function ledgerFactor(v){return v==='week'?12/52:v==='biweek'?12/26:1;}
+function ledgerFactor(v){return v==="week"?1/4:v==="biweek"?1/2:1;}
 function ensureLedgerView(){if(ledgerView===null){const f=primaryFreq();ledgerView=f==='weekly'?'week':f==='biweekly'?'biweek':'month';}}
 function ledgerToggle(){
   ensureLedgerView();
