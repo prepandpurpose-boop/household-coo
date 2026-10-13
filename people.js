@@ -93,7 +93,7 @@
 (m.role !== 'adult' ? '<label class="pp-chk" style="margin-top:10px"><input type="checkbox" data-pptv="' + id + '"' + ((S.cal.tv || {})[id] ? ' checked' : '') + '> This is the TV screen account. It opens only the family board and cannot leave it.</label>' : '') +
         '</div>';
     }).join('');
-    const pend = S.invites.length ? '<div class="card" style="margin-top:18px"><h2>Waiting to sign in</h2><p class="note">They join your household the first time they sign in with this email.</p>' +
+    const pend = S.invites.length ? '<div class="card" style="margin-top:18px"><h2>Waiting to sign in</h2><p class="note">They join your household the first time they sign in. They tap Sign in, type this email and the password you gave them, and do not create an account. Forgot the password? Tap Set password to make a new one.</p>' +
       S.invites.map(i => '<div class="row"><div style="flex:1"><div style="font-weight:600">' + esc(i.display_name || i.email) + '</div><div class="note">' + esc(i.email) + ' · ' + esc(ROLE[i.role] || i.role) + '</div></div><button class="btn ghost" style="min-height:32px;padding:0 12px;margin-right:8px" data-ppresend="' + esc(i.email) + '" data-ppname="' + esc(i.display_name || '') + '">Set password</button><button class="btn ghost" style="min-height:32px;padding:0 12px" data-ppcancel="' + i.id + '">Cancel</button></div>').join('') + '</div>' : '';
     const msg = S.ppMsg ? '<div class="card" style="margin-top:18px;border-left:4px solid var(--gold)"><p style="margin:0">' + esc(S.ppMsg) + '</p></div>' : '';
     const form = '<div class="card" style="margin-top:18px"><h2>Add a person</h2>' +
@@ -108,13 +108,14 @@
       '<div style="margin-top:12px"><button class="btn" id="pp_add">Add person</button></div></div>';
     const ex = 'yourname+tv@gmail.com';
 const tvHelp = '<div class="card" style="margin-top:18px"><h2>Set up a TV screen</h2>' +
-'<p class="note">Show the family board on a TV without putting a parent account on it. The TV gets its own sign-in that can only see the board.</p>' +
+'<p class="note">Show the family board on a TV without putting a parent account on it. The TV gets its own sign-in that can only see the board. You create that sign-in here. Do not create an account on the TV.</p>' +
 '<ol style="padding-left:20px;line-height:1.6;margin:10px 0">' +
-'<li><b>Add a person</b> in the form above. Name: TV. Role: Staff. Email: use your own email and type +tv before the @ sign. For example, if your email is yourname@gmail.com, the TV email is <b>' + esc(ex) + '</b>. You do not need to create a new email. Type a password of at least 8 characters in the Temporary password box. Write the password down.</li>' +
-'<li><b>On the TV</b>, open household-coo.vercel.app. Do not tap Create an account. Type the TV email and the same password you typed in step 1, then tap Sign in. If you forget the password, tap Set password on the TV row under Your household to make a new one.</li>' +
-'<li><b>Back on this screen</b>, find TV under Your household and tick This is the TV screen account.</li>' +
-'<li><b>Reload the TV.</b> It shows the family board only. It cannot open anything else.</li></ol>' +
-'<p class="note">The + sign works with Gmail and Google Workspace email. If your email provider does not accept it, use a different email address that you can receive mail at.</p></div>';
+'<li><b>Add a person</b> in the form above. Name: TV. Role: Staff. Email: use your own email and type +tv before the @ sign. For example, if your email is yourname@gmail.com, the TV email is <b>' + esc(ex) + '</b>. Nothing is sent to this email. Type a password of at least 8 characters in the Temporary password box and write it down. Tap Add person.</li>' +
+'<li><b>Tick the TV box.</b> Under Your household, find TV and tick This is the TV screen account.</li>' +
+'<li><b>On the TV</b>, open household-coo.vercel.app. Tap Sign in. Type the TV email and the password from step 1. Do not tap Create an account.</li>' +
+'<li><b>The TV shows the family board only.</b> It cannot open anything else. If the TV does not change, reload it.</li></ol>' +
+'<p class="note">Forgot the TV password? Under Your household, tap Set password on the TV row and type a new one. Then sign in on the TV with the new password.</p>' +
+'<p class="note">The + sign works with Gmail and Google Workspace email. If your email provider does not accept it, use a different email address.</p></div>';
 return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>People.</h1><div class="rule"></div>' +
       '<div class="card"><h2>Your household</h2>' + (rows || '<p class="note">Just you so far.</p>') + '</div>' + msg + form + pend + tvHelp;
   };
