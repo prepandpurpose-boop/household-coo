@@ -2,6 +2,9 @@
 (function () {
   const ROLE = { owner: 'Owner', adult: 'Parent', kid: 'Household member', helper: 'Helper', staff: 'Staff' };
   const mgr = () => S.me && ['owner', 'adult'].includes(S.me.role);
+  const ppcss = document.createElement('style');
+  ppcss.textContent = 'label.pp-chk{display:flex;flex-direction:row;gap:10px;align-items:center;justify-content:flex-start;text-align:left;font-size:15px}label.pp-chk input[type=checkbox]{width:22px;height:22px;min-height:22px;min-width:22px;flex:0 0 22px;margin:0;padding:0}';
+  document.head.appendChild(ppcss);
 
   // Household member type: adult (own private money) or child, 13 and under (parents manage their money).
   // Kept in its own record so it is never overwritten by calendar saves.
@@ -65,11 +68,11 @@
         '<button class="btn ghost" style="min-height:32px;padding:0 12px" data-ppdel="' + id + '">Remove</button></div>' +
         '<label for="r_' + id + '">Role</label><select id="r_' + id + '" data-pprole="' + id + '">' + roleOpts(m.role) + '</select>' +
         (m.role === 'kid' ? '<label for="t_' + id + '">Type</label><select id="t_' + id + '" data-pptype="' + id + '"><option value="adult"' + (isAdultRec(m) ? ' selected' : '') + '>Adult</option><option value="child"' + (isAdultRec(m) ? '' : ' selected') + '>Child, 13 and under</option></select>' : '') +
-        (m.role === 'adult' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" data-ppmoney="' + id + '"' + (m.can_see_money ? ' checked' : '') + '> Can see money</label>'
+        (m.role === 'adult' ? '<label class="pp-chk" style="margin-top:10px"><input type="checkbox" data-ppmoney="' + id + '"' + (m.can_see_money ? ' checked' : '') + '> Can see money</label>'
           : (m.role === 'kid' && isAdultRec(m) ? '<p class="note" style="margin:8px 0 0">Has their own private Money and Receipts. You cannot see them.</p>'
           : (m.role === 'kid' ? '<p class="note" style="margin:8px 0 0">Their money is in Members\' money. You manage it.</p>' : '<p class="note" style="margin:8px 0 0">Cannot see money.</p>'))) +
-        (m.role !== 'adult' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" data-ppadd="' + id + '"' + (S.cal.perms[id] ? ' checked' : '') + '> Can add to the Command Center for everyone</label>' : '') +
-(m.role !== 'adult' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" data-pptv="' + id + '"' + ((S.cal.tv || {})[id] ? ' checked' : '') + '> This is the TV screen account. It opens only the family board and cannot leave it.</label>' : '') +
+        (m.role !== 'adult' ? '<label class="pp-chk" style="margin-top:10px"><input type="checkbox" data-ppadd="' + id + '"' + (S.cal.perms[id] ? ' checked' : '') + '> Can add to the Command Center for everyone</label>' : '') +
+(m.role !== 'adult' ? '<label class="pp-chk" style="margin-top:10px"><input type="checkbox" data-pptv="' + id + '"' + ((S.cal.tv || {})[id] ? ' checked' : '') + '> This is the TV screen account. It opens only the family board and cannot leave it.</label>' : '') +
         '</div>';
     }).join('');
     const pend = S.invites.length ? '<div class="card" style="margin-top:18px"><h2>Waiting to sign in</h2><p class="note">They join your household the first time they sign in with this email.</p>' +
@@ -81,7 +84,7 @@
       '<label for="pp_role">Role</label><select id="pp_role">' + roleOpts('kid') + '</select>' +
       '<div id="pp_trow"><label for="pp_type">Is this person an adult or a child?</label><select id="pp_type"><option value="adult">Adult</option><option value="child">Child, 13 and under</option></select>' +
       '<p class="note" id="pp_tnote"></p></div>' +
-      '<label id="pp_mrow" style="display:none;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="pp_money"> Can see money</label>' +
+      '<label id="pp_mrow" class="pp-chk" style="display:none;margin-top:10px"><input type="checkbox" id="pp_money"> Can see money</label>' +
       '<p class="note">Helpers and staff never see money.</p>' +
       '<div style="margin-top:12px"><button class="btn" id="pp_add">Add person</button></div></div>';
     const ex = 'yourname+tv@gmail.com';
