@@ -97,7 +97,7 @@
       S.invites.map(i => '<div class="row"><div style="flex:1"><div style="font-weight:600">' + esc(i.display_name || i.email) + '</div><div class="note">' + esc(i.email) + ' · ' + esc(ROLE[i.role] || i.role) + '</div></div><button class="btn ghost" style="min-height:32px;padding:0 12px;margin-right:8px" data-ppresend="' + esc(i.email) + '" data-ppname="' + esc(i.display_name || '') + '">Set password</button><button class="btn ghost" style="min-height:32px;padding:0 12px" data-ppcancel="' + i.id + '">Cancel</button></div>').join('') + '</div>' : '';
     const msg = S.ppMsg ? '<div class="card" style="margin-top:18px;border-left:4px solid var(--gold)"><p style="margin:0">' + esc(S.ppMsg) + '</p></div>' : '';
     const form = '<div class="card" style="margin-top:18px"><h2>Add a person</h2>' +
-      '<label for="pp_name">Name</label><input id="pp_name" placeholder="First name">' +
+      '<label for="pp_name">Name</label><input id="pp_name" placeholder="First name" autocomplete="off" name="pp_member_name">' +
       '<label for="pp_email">Email they will sign in with</label><input id="pp_email" type="email" autocomplete="off">' +
       '<label for="pp_role">Role</label><select id="pp_role">' + roleOpts('kid') + '</select>' +
       '<div id="pp_trow"><label for="pp_type">Is this person an adult or a child?</label><select id="pp_type"><option value="adult">Adult</option><option value="child">Child, 13 and under</option></select>' +
