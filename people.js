@@ -3,6 +3,36 @@
   const ROLE = { owner: 'Owner', adult: 'Parent', kid: 'Household member', helper: 'Helper', staff: 'Staff' };
   const mgr = () => S.me && ['owner', 'adult'].includes(S.me.role);
 
+  // Household member type: adult (own private money) or child, 13 and under (parents manage their money).
+  // Kept in its own record so it is never overwritten by calendar saves.
+  const lc = x => String(x || '').trim().toLowerCase();
+  async function readTypes() {
+    try {
+      const { data } = await sb.from('app_data').select('data').eq('household_id', S.me.household_id).eq('module', 'member_types').maybeSingle();
+      const t = (data && data.data) || {};
+      t.adult = t.adult || {}; t.adultEmail = t.adultEmail || {};
+      return t;
+    } catch (e) { return { adult: {}, adultEmail: {} }; }
+  }
+  async function writeTypes(change) {
+    const t = await readTypes(); change(t); S.types = t;
+    const { error } = await sb.from('app_data').upsert({ household_id: S.me.household_id, module: 'member_types', data: t, updated_at: new Date().toISOString() }, { onConflict: 'household_id,module' });
+    if (error) { alert('That change did not save. Please try again.'); return false; }
+    return true;
+  }
+  window.isAdultRec = function (m) {
+    const t = S.types || {};
+    return !!(m && m.role === 'kid' && ((t.adult || {})[m.user_id] || (m.user_id === (S.user && S.user.id) && (t.adultEmail || {})[lc(S.user.email)])));
+  };
+  window.isAdultMember = function () { return isAdultRec(S.me); };
+  window.loadTypes = async function () {
+    S.types = await readTypes();
+    // An adult who was invited by email: record their account so parents see the right type.
+    if (S.me.role === 'kid' && !S.types.adult[S.user.id] && S.types.adultEmail[lc(S.user.email)]) {
+      await writeTypes(t => { t.adult[S.user.id] = true; });
+    }
+  };
+
   window.loadInvites = async function () {
     try {
       const { data } = await sb.from('household_invites').select('*').eq('household_id', S.me.household_id).order('created_at');
@@ -29,12 +59,15 @@
       const id = m.user_id, me = id === S.user.id, owner = m.role === 'owner';
       const name = esc(nm(id)) + (me ? ' (you)' : '');
       if (owner || me) {
-        return '<div class="row"><div style="flex:1"><div style="font-weight:600">' + name + '</div><div class="note">' + ROLE[m.role] + (m.can_see_money ? ' · sees money' : '') + '</div></div></div>';
+        return '<div class="row"><div style="flex:1"><div style="font-weight:600">' + name + '</div><div class="note">' + (isAdultRec(m) ? 'Adult household member · private money' : ROLE[m.role]) + (m.can_see_money ? ' · sees money' : '') + '</div></div></div>';
       }
       return '<div class="card" style="margin:10px 0;padding:14px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div style="font-weight:600">' + name + '</div>' +
         '<button class="btn ghost" style="min-height:32px;padding:0 12px" data-ppdel="' + id + '">Remove</button></div>' +
         '<label for="r_' + id + '">Role</label><select id="r_' + id + '" data-pprole="' + id + '">' + roleOpts(m.role) + '</select>' +
-        (m.role === 'adult' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" data-ppmoney="' + id + '"' + (m.can_see_money ? ' checked' : '') + '> Can see money</label>' : '<p class="note" style="margin:8px 0 0">Cannot see money.</p>') +
+        (m.role === 'kid' ? '<label for="t_' + id + '">Type</label><select id="t_' + id + '" data-pptype="' + id + '"><option value="adult"' + (isAdultRec(m) ? ' selected' : '') + '>Adult</option><option value="child"' + (isAdultRec(m) ? '' : ' selected') + '>Child, 13 and under</option></select>' : '') +
+        (m.role === 'adult' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" data-ppmoney="' + id + '"' + (m.can_see_money ? ' checked' : '') + '> Can see money</label>'
+          : (m.role === 'kid' && isAdultRec(m) ? '<p class="note" style="margin:8px 0 0">Has their own private Money and Receipts. You cannot see them.</p>'
+          : (m.role === 'kid' ? '<p class="note" style="margin:8px 0 0">Their money is in Members\' money. You manage it.</p>' : '<p class="note" style="margin:8px 0 0">Cannot see money.</p>'))) +
         (m.role !== 'adult' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" data-ppadd="' + id + '"' + (S.cal.perms[id] ? ' checked' : '') + '> Can add to the Command Center for everyone</label>' : '') +
 (m.role !== 'adult' ? '<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" data-pptv="' + id + '"' + ((S.cal.tv || {})[id] ? ' checked' : '') + '> This is the TV screen account. It opens only the family board and cannot leave it.</label>' : '') +
         '</div>';
@@ -46,8 +79,10 @@
       '<label for="pp_name">Name</label><input id="pp_name" placeholder="First name">' +
       '<label for="pp_email">Email they will sign in with</label><input id="pp_email" type="email" autocomplete="off">' +
       '<label for="pp_role">Role</label><select id="pp_role">' + roleOpts('kid') + '</select>' +
+      '<div id="pp_trow"><label for="pp_type">Is this person an adult or a child?</label><select id="pp_type"><option value="adult">Adult</option><option value="child">Child, 13 and under</option></select>' +
+      '<p class="note" id="pp_tnote"></p></div>' +
       '<label id="pp_mrow" style="display:none;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="pp_money"> Can see money</label>' +
-      '<p class="note">Household members, helpers and staff never see money.</p>' +
+      '<p class="note">Helpers and staff never see money.</p>' +
       '<div style="margin-top:12px"><button class="btn" id="pp_add">Add person</button></div></div>';
     const em = (S.user && S.user.email) || '', ex = em.includes('@') ? em.replace('@', '+tv@') : 'yourname+tv@gmail.com';
 const tvHelp = '<div class="card" style="margin-top:18px"><h2>Set up a TV screen</h2>' +
@@ -66,19 +101,34 @@ return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>People.</h1><div cl
     if (S.page !== 'people' || !S.invites) return;
     const $$ = s => document.querySelector(s);
     const rs = $$('#pp_role');
-    if (rs) rs.onchange = () => { $$('#pp_mrow').style.display = rs.value === 'adult' ? 'flex' : 'none'; };
+    const ts = $$('#pp_type'), tnote = () => {
+      const kid = rs.value === 'kid';
+      $$('#pp_trow').style.display = kid ? 'block' : 'none';
+      $$('#pp_tnote').textContent = ts.value === 'adult'
+        ? 'Adults get their own private Money and Receipts. Parents cannot see them.'
+        : 'Children use Members\' money, which parents manage.';
+    };
+    if (rs) rs.onchange = () => { $$('#pp_mrow').style.display = rs.value === 'adult' ? 'flex' : 'none'; tnote(); };
+    if (ts) ts.onchange = tnote;
+    if (rs) tnote();
     const add = $$('#pp_add');
     if (add) add.onclick = async () => {
       const email = $$('#pp_email').value.trim(), name = $$('#pp_name').value.trim(), role = $$('#pp_role').value;
       if (!email) { alert('Type their email.'); return; }
       add.disabled = true;
+      const before = S.members.map(x => x.user_id), isAdultKid = role === 'kid' && $$('#pp_type').value === 'adult';
       const { data, error } = await sb.rpc('invite_member', { h: S.me.household_id, p_email: email, p_name: name, p_role: role, p_money: role === 'adult' && $$('#pp_money').checked });
       add.disabled = false;
       if (error) { alert(error.message); return; }
       S.ppMsg = data === 'added'
         ? (name || email) + ' is now in your household.'
         : (name || email) + ' is added. Tell them to open household-coo.vercel.app and sign in with ' + email + '. They will land in your household.';
-      await reloadMembers(); await loadInvites(); render();
+      await reloadMembers();
+      if (isAdultKid) {
+        const fresh = S.members.filter(x => !before.includes(x.user_id)).map(x => x.user_id);
+        await writeTypes(t => { fresh.forEach(u => { t.adult[u] = true; }); if (data !== 'added') t.adultEmail[lc(email)] = true; });
+      }
+      await loadInvites(); render();
     };
     document.querySelectorAll('[data-pprole]').forEach(s => s.onchange = async () => {
       const m = S.members.find(x => x.user_id === s.dataset.pprole);
@@ -86,6 +136,12 @@ return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>People.</h1><div cl
       if (error) alert(error.message);
       if (s.value !== 'adult') { delete S.cal.perms[m.user_id]; }
       await reloadMembers(); render();
+    });
+    document.querySelectorAll('[data-pptype]').forEach(s => s.onchange = async () => {
+      const u = s.dataset.pptype, adult = s.value === 'adult';
+      if (!adult && !confirm('Make ' + nm(u) + ' a child? Their private money stays private and will not be shown to you. They will use Members\' money instead.')) { render(); return; }
+      await writeTypes(t => { if (adult) t.adult[u] = true; else delete t.adult[u]; });
+      render();
     });
     document.querySelectorAll('[data-ppmoney]').forEach(c => c.onchange = async () => {
       const m = S.members.find(x => x.user_id === c.dataset.ppmoney);

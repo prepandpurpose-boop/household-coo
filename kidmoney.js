@@ -2,7 +2,7 @@
 (function () {
   const money = n => (n < 0 ? '-' : '') + '$' + Math.abs(+n || 0).toFixed(2);
   const mgr = () => S.me && ['owner', 'adult'].includes(S.me.role);
-  const kidsList = () => S.members.filter(m => m.role === 'kid');
+  const kidsList = () => S.members.filter(m => m.role === 'kid' && !(typeof isAdultRec === 'function' && isAdultRec(m)));
   const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
   window.loadKm = async function () {

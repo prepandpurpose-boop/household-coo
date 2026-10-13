@@ -153,7 +153,9 @@ function createHousehold(){
 
 // ---------- data ----------
 const isManager=()=>S.me&&['owner','adult'].includes(S.me.role);
-const seesMoney=()=>S.me&&S.me.can_see_money;
+const seesMoney=()=>S.me&&(S.me.can_see_money||(typeof isAdultMember==='function'&&isAdultMember()));
+// Adult household members keep their own private money. It is stored under their own sign-in, not the household's.
+const privateMoney=()=>S.me&&!S.me.can_see_money&&typeof isAdultMember==='function'&&isAdultMember();
 async function load(){
   const {data:{session}}=await sb.auth.getSession();
   if(!session){signIn();return}
@@ -171,6 +173,7 @@ async function load(){
   await loadSub();if(!subOk()){paywall();return}
   await loadTasks();
   await loadKitchen();
+  try{await loadTypes()}catch(e){console.warn(e)}
   await loadMoney();
   try{await loadCal()}catch(e){console.warn(e)}
 if(S.cal&&S.cal.tv&&S.cal.tv[S.user.id]&&!isManager()&&typeof tvStart==='function'){S.tvLocked=true;tvStart();return}
@@ -185,12 +188,21 @@ async function loadKitchen(){
 }
 async function loadMoney(){
   if(!seesMoney()){S.mdata=null;return}
+  if(privateMoney()){
+    const {data:pm}=await sb.from('member_money').select('data').eq('user_id',S.user.id).maybeSingle();
+    S.mdata=pm?pm.data:null;return;
+  }
   const {data}=await sb.from('app_data').select('data').eq('household_id',S.me.household_id).eq('module','cfo').maybeSingle();
   S.mdata=data?data.data:null;
 }
 async function saveMoney(d){
   if(!seesMoney())return;
   S.mdata=d;
+  if(privateMoney()){
+    const {error:pe}=await sb.from('member_money').upsert({user_id:S.user.id,household_id:S.me.household_id,data:d,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+    if(pe)console.warn('money save failed',pe.message);
+    return;
+  }
   const {error}=await sb.from('app_data').upsert({household_id:S.me.household_id,module:'cfo',data:d,updated_at:new Date().toISOString()},{onConflict:'household_id,module'});
   if(error)console.warn('money save failed',error.message);
 }
@@ -230,7 +242,7 @@ window.addEventListener('message',e=>{
           return of(u,o);
         };
       }catch(err){console.warn(err)}
-      mf.contentWindow.postMessage({type:'money-init',data:S.mdata,sub:S.sub},location.origin);
+      mf.contentWindow.postMessage({type:'money-init',data:S.mdata,sub:privateMoney()?null:S.sub},location.origin);
     }
   }else if(m.type==='receipt-spend'){
     if(seesMoney()&&S.mdata){
@@ -255,17 +267,19 @@ async function loadTasks(){
 // ---------- shell ----------
 function navItems(){
   const kid=S.me.role==='kid', staff=['helper','staff'].includes(S.me.role);
-  if(kid||staff) return [['tasks','My tasks'],['cal','Command Center']].concat(kid?[['km','My money'],['add','Add what I need'],['dinner','Dinner']]:[]);
+  if(kid||staff){
+    const mine=kid?(privateMoney()?[['money','Money'],['receipts','Receipts'],['add','Add what I need'],['dinner','Dinner']]:[['km','My money'],['add','Add what I need'],['dinner','Dinner']]):[];
+    return [['tasks','My tasks'],['cal','Command Center']].concat(mine);
+  }
   const n=[['cal','Command Center'],['k:dashboard','Kitchen']];
-  if(S.members.some(m=>m.role==='kid'))n.push(['km',"Members' money"]);
-  if(seesMoney()){n.push(['money','Money']);n.push(['receipts','Receipts']);}
+    if(seesMoney()){n.push(['money','Money']);n.push(['receipts','Receipts']);}
   n.push(['people','People']);
   return n;
 }
 function shell(){
   $('#root').innerHTML=`<div id="app"><nav id="side"><div class="brand">Household<br>COO</div><div class="by">BY PROVISION HOUSE</div>
   ${navItems().map(([k,l])=>`<a data-p="${k}" class="${(S.page===k||(k==='k:dashboard'&&S.page.startsWith('k:')))?'on':''}">${l}</a>`).join('')}
-  <div id="me"><b>${esc(S.hh?.name)}</b><br>${esc(S.me.role)}${seesMoney()?' · sees money':''}<br><a id="out" style="padding:6px 0 0;color:var(--gold-l);font-size:13px">Sign out</a></div></nav>
+  <div id="me"><b>${esc(S.hh?.name)}</b><br>${esc(privateMoney()?'adult member':S.me.role)}${privateMoney()?' · private money':(seesMoney()?' · sees money':'')}<br><a id="out" style="padding:6px 0 0;color:var(--gold-l);font-size:13px">Sign out</a></div></nav>
   <main id="main"></main></div>`;
   document.querySelectorAll('#side a[data-p]').forEach(a=>a.onclick=()=>{
     const to=a.dataset.p;
