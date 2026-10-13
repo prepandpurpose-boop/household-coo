@@ -92,7 +92,7 @@ mode=mode||'in';
 if(location.hash)history.replaceState(null,'',location.pathname+location.search);
 const up=mode==='up', fg=mode==='forgot';
 const head=up?'Create your account.':(fg?'Reset your password.':'Welcome.');
-const sub=up?'Use your email and pick a password with at least 8 characters.':(fg?'Type your email. We send you an email to choose a new password.':'Sign in with your email and password.');
+const sub=up?'Use your email and pick a password with at least 8 characters.':(fg?'Type your email. We send you an email to choose a new password.':'Sign in with your email and password. If a parent added you, use the email and password they gave you. Do not create an account.');
 $('#root').innerHTML='<div class="center"><div class="card">'
 +'<div class="eyebrow">Household COO · by Provision House</div><h1>'+head+'</h1><div class="rule"></div>'
 +'<p style="color:var(--mute)">'+sub+'</p>'
