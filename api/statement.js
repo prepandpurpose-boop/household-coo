@@ -116,11 +116,24 @@ module.exports = async (req, res) => {
     const user = await who.json();
 
     // Only people allowed to see money may use this.
-    const mem = await fetch(SUPABASE_URL + '/rest/v1/household_members?select=can_see_money&user_id=eq.' + encodeURIComponent(user.id), {
+    const mem = await fetch(SUPABASE_URL + '/rest/v1/household_members?select=can_see_money,role,household_id&user_id=eq.' + encodeURIComponent(user.id), {
       headers: { apikey: SUPABASE_PUBLISHABLE, Authorization: 'Bearer ' + token }
     });
     const rows = mem.ok ? await mem.json() : [];
-    if (!rows.some(m => m.can_see_money)) return res.status(403).json({ error: 'Money is not available for this account.' });
+    let allowed = rows.some(m => m.can_see_money);
+    if (!allowed) {
+      // Adult household members have their own private money. They are marked adult in the household's member types.
+      for (const m of rows.filter(x => x.role === 'kid')) {
+        const t = await fetch(SUPABASE_URL + '/rest/v1/app_data?select=data&module=eq.member_types&household_id=eq.' + encodeURIComponent(m.household_id), {
+          headers: { apikey: SUPABASE_PUBLISHABLE, Authorization: 'Bearer ' + token }
+        });
+        const tr = t.ok ? await t.json() : [];
+        const d = (tr[0] && tr[0].data) || {};
+        const email = String(user.email || '').trim().toLowerCase();
+        if ((d.adult || {})[user.id] || (d.adultEmail || {})[email]) { allowed = true; break; }
+      }
+    }
+    if (!allowed) return res.status(403).json({ error: 'Money is not available for this account.' });
 
     const body = req.body || {};
     if (body.mode === 'extract') {
