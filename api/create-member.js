@@ -18,12 +18,26 @@ module.exports = async (req, res) => {
 
     const body = req.body || {};
     const email = lc(body.email), hid = String(body.household_id || ''), password = String(body.password || '');
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !UUID.test(hid)) return res.status(400).json({ error: 'That email does not look right.' });
+    if (!UUID.test(hid) || (!body.user_id && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))) return res.status(400).json({ error: 'That email does not look right.' });
     if (password.length < 8) return res.status(400).json({ error: 'The password needs at least 8 characters.' });
 
     const mem = await fetch(SUPABASE_URL + '/rest/v1/household_members?select=role&user_id=eq.' + encodeURIComponent(user.id) + '&household_id=eq.' + encodeURIComponent(hid), { headers: asUser });
     const rows = mem.ok ? await mem.json() : [];
     if (!rows.some(m => m.role === 'owner' || m.role === 'adult')) return res.status(403).json({ error: 'Only parents can do this.' });
+
+    // A person already in the household as Staff or Helper (like the TV screen) can get a new password from a parent.
+    if (body.user_id) {
+      const uid = String(body.user_id);
+      if (!UUID.test(uid)) return res.status(400).json({ error: 'Pick a person.' });
+      const key0 = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!key0) return res.status(500).json({ error: 'This is not set up yet.' });
+      const admin0 = { apikey: key0, Authorization: 'Bearer ' + key0, 'content-type': 'application/json' };
+      const m2 = await fetch(SUPABASE_URL + '/rest/v1/household_members?select=role&user_id=eq.' + encodeURIComponent(uid) + '&household_id=eq.' + encodeURIComponent(hid), { headers: admin0 });
+      const r2 = m2.ok ? await m2.json() : [];
+      if (!r2.some(x => x.role === 'staff' || x.role === 'helper')) return res.status(403).json({ error: 'You can only do this for Staff and Helpers.' });
+      const up0 = await fetch(SUPABASE_URL + '/auth/v1/admin/users/' + uid, { method: 'PUT', headers: admin0, body: JSON.stringify({ password, email_confirm: true }) });
+      return res.status(200).json({ status: up0.ok ? 'updated' : 'failed' });
+    }
 
     const inv = await fetch(SUPABASE_URL + '/rest/v1/household_invites?select=email&household_id=eq.' + encodeURIComponent(hid), { headers: asUser });
     const list = inv.ok ? await inv.json() : [];
