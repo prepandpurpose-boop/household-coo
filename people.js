@@ -39,10 +39,10 @@
   // The message a parent sends by text. The parent creates the sign-in, so the person only signs in.
   const inviteText = (name, email, pw) => 'Hi ' + (name || '') + '! You are in ' + ((S.hh && S.hh.name) || 'our household') + ' on Household COO.\n\n1. Open https://household-coo.vercel.app\n2. Tap Sign in\n3. Email: ' + email + '\n4. Password: ' + pw + '\n\nDo not create an account. Just sign in.';
   // Creates the sign-in for a waiting person. Returns 'created', 'updated', 'exists' or 'failed'.
-  async function makeLogin(email, password) {
+  async function makeLogin(email, password, userId) {
     try {
       const { data: { session } } = await sb.auth.getSession();
-      const r = await fetch('/api/create-member', { method: 'POST', headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + (session ? session.access_token : '') }, body: JSON.stringify({ email, password, household_id: S.me.household_id }) });
+      const r = await fetch('/api/create-member', { method: 'POST', headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + (session ? session.access_token : '') }, body: JSON.stringify({ email, password, user_id: userId || undefined, household_id: S.me.household_id }) });
       const j = await r.json().catch(() => ({}));
       return j.status || 'failed';
     } catch (e) { return 'failed'; }
@@ -83,7 +83,7 @@
         return '<div class="row"><div style="flex:1"><div style="font-weight:600">' + name + '</div><div class="note">' + (isAdultRec(m) ? 'Adult household member · private money' : ROLE[m.role]) + (m.can_see_money ? ' · sees money' : '') + '</div></div></div>';
       }
       return '<div class="card" style="margin:10px 0;padding:14px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div style="font-weight:600">' + name + '</div>' +
-        '<button class="btn ghost" style="min-height:32px;padding:0 12px" data-ppdel="' + id + '">Remove</button></div>' +
+        '<span>' + ((m.role === 'staff' || m.role === 'helper') ? '<button class="btn ghost" style="min-height:32px;padding:0 12px;margin-right:8px" data-ppsetpw="' + id + '">Set password</button>' : '') + '<button class="btn ghost" style="min-height:32px;padding:0 12px" data-ppdel="' + id + '">Remove</button></span></div>' +
         '<label for="r_' + id + '">Role</label><select id="r_' + id + '" data-pprole="' + id + '">' + roleOpts(m.role) + '</select>' +
         (m.role === 'kid' ? '<label for="t_' + id + '">Type</label><select id="t_' + id + '" data-pptype="' + id + '"><option value="adult"' + (isAdultRec(m) ? ' selected' : '') + '>Adult</option><option value="child"' + (isAdultRec(m) ? '' : ' selected') + '>Child, 13 and under</option></select>' : '') +
         (m.role === 'adult' ? '<label class="pp-chk" style="margin-top:10px"><input type="checkbox" data-ppmoney="' + id + '"' + (m.can_see_money ? ' checked' : '') + '> Can see money</label>'
@@ -189,6 +189,16 @@ document.querySelectorAll('[data-ppdel]').forEach(b => b.onclick = async () => {
       const { error } = await sb.rpc('remove_member', { h: S.me.household_id, u: b.dataset.ppdel });
       if (error) alert(error.message);
       await reloadMembers(); render();
+    });
+    document.querySelectorAll('[data-ppsetpw]').forEach(b => b.onclick = async () => {
+      const id = b.dataset.ppsetpw, who = nm(id);
+      const pw = window.prompt('Type a new password for ' + who + ' (at least 8 characters). Use it to sign in on that device.');
+      if (pw === null) return;
+      if (pw.length < 8) { alert('The password needs at least 8 characters.'); return; }
+      b.disabled = true;
+      const st = await makeLogin('', pw, id);
+      S.ppMsg = (st === 'updated') ? 'Done. ' + who + ' signs in with their email and the password you just typed.' : 'The password could not be set. Please try again.';
+      render();
     });
     document.querySelectorAll('[data-ppresend]').forEach(b => b.onclick = async () => {
       const pw = window.prompt('Type a temporary password for ' + (b.dataset.ppname || b.dataset.ppresend) + ' (at least 8 characters). You give it to them.');
