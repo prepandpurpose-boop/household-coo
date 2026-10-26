@@ -1,9 +1,0 @@
-{
-  "name": "household-coo",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Household COO by Provision House",
-  "dependencies": {
-    "web-push": "^3.6.7"
-  }
-}
