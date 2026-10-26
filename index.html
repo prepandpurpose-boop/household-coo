@@ -165,7 +165,14 @@ const isManager=()=>S.me&&['owner','adult'].includes(S.me.role);
 const seesMoney=()=>S.me&&(S.me.can_see_money||(typeof isAdultMember==='function'&&isAdultMember()));
 // Adult household members keep their own private money. It is stored under their own sign-in, not the household's.
 const privateMoney=()=>S.me&&!S.me.can_see_money&&typeof isAdultMember==='function'&&isAdultMember();
+// Remember a page asked for in the address (a tapped reminder opens /?page=chores) before anything can change the address.
+const PAGE_ASK=(location.search.match(/[?&]page=([a-z]+)/)||[])[1]||'';
+let LOADING=false;
 async function load(){
+  if(LOADING)return; LOADING=true;
+  try{ await load2(); } finally { LOADING=false; }
+}
+async function load2(){
   const {data:{session}}=await sb.auth.getSession();
   if(!session){signIn();return}
   S.user=session.user;
@@ -189,7 +196,7 @@ async function load(){
 if(S.cal&&S.cal.tv&&S.cal.tv[S.user.id]&&!isManager()&&typeof tvStart==='function'){S.tvLocked=true;tvStart();return}
   if(!S.me.display_name){const n=prompt('What name should the household see for you?');if(n){await sb.rpc('set_my_name',{n});S.me.display_name=n;const i=S.members.findIndex(x=>x.user_id===S.user.id);if(i>=0)S.members[i].display_name=n}}
   S.page=S.me.role==='kid'?'tasks':'cal';
-  const pq=(location.search.match(/[?&]page=([a-z]+)/)||[])[1]; if(pq==='chores'){S.page='chores';history.replaceState(null,'',location.pathname);}
+  if(PAGE_ASK==='chores'){S.page='chores';if(/[?&]page=/.test(location.search))history.replaceState(null,'',location.pathname);}
   if(/[?&]tv=1/.test(location.search)&&typeof tvStart==='function'){tvStart();return}
   shell();
 }
