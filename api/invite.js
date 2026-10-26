@@ -2,7 +2,7 @@
 // Only a parent or owner of the household can use this, and only for an email that is on the household's waiting list.
 const SUPABASE_URL = 'https://utqgmylsdzoqovadrwbg.supabase.co';
 const SUPABASE_PUBLISHABLE = 'sb_publishable_dycz1DniVdRUep8rh--RMw_qkYH_uac';
-const SITE = 'https://household-coo.vercel.app';
+const SITE = 'https://app.provisionhouse.org';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const lc = s => String(s || '').trim().toLowerCase();
 

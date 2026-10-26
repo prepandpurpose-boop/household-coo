@@ -64,7 +64,7 @@ module.exports = async (req, res) => {
     const o = (ev.data && ev.data.object) || {};
 
     if (ev.type === 'checkout.session.completed' && o.mode === 'subscription' && UUID.test(o.client_reference_id || '')) {
-      const plan = (o.amount_total || 0) >= 99700 ? 'yearly' : 'monthly';
+      const plan = (o.amount_total || 0) >= 34900 ? 'yearly' : 'monthly';
       const row = { household_id: o.client_reference_id, status: 'active', stripe_customer: o.customer || null, plan, updated_at: new Date().toISOString() };
       const end = await fetchPeriodEnd(o.subscription);
       if (end) row.current_period_end = end;
