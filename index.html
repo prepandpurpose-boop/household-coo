@@ -297,7 +297,7 @@ function navItems(){
 function shell(){
   $('#root').innerHTML=`<div id="app"><nav id="side"><div class="brand">Household<br>COO</div><div class="by">BY PROVISION HOUSE</div>
   ${navItems().map(([k,l])=>`<a data-p="${k}" class="${(S.page===k||(k==='k:dashboard'&&S.page.startsWith('k:')))?'on':''}">${l}</a>`).join('')}
-  <div id="me"><b>${esc(S.hh?.name)}</b><br>${esc(privateMoney()?'adult member':S.me.role)}${privateMoney()?' · private money':(seesMoney()?' · sees money':'')}<br><a id="out" style="padding:6px 0 0;color:var(--gold-l);font-size:13px">Sign out</a></div></nav>
+  <div id="me"><b>${esc(S.hh?.name)}</b><br>${esc(privateMoney()?'adult member':S.me.role)}${privateMoney()?' · private money':(seesMoney()?' · sees money':'')}<br>${isManager()&&S.sub&&['active','trialing','past_due','canceled'].includes(S.sub.status)?'<a href="https://billing.stripe.com/p/login/4gM00i2Nx1sqdo34FQffy00" target="_blank" rel="noopener" style="padding:6px 0 0;color:var(--gold-l);font-size:13px;display:inline-block">Manage plan</a> · ':''}<a id="out" style="padding:6px 0 0;color:var(--gold-l);font-size:13px;display:inline-block">Sign out</a></div></nav>
   <main id="main"></main></div>`;
   document.querySelectorAll('#side a[data-p]').forEach(a=>a.onclick=()=>{
     const to=a.dataset.p;
