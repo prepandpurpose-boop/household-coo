@@ -13,18 +13,27 @@ const SITE = 'https://app.provisionhouse.org';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const H = 3600 * 1000;
 
+// The server key. A legacy service_role key is a JWT (starts with eyJ) and goes in both headers;
+// a newer secret key (sb_secret_...) goes in the apikey header only.
 function admin() {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  return { apikey: key, Authorization: 'Bearer ' + key, 'content-type': 'application/json' };
+  const key = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  const h = { apikey: key, 'content-type': 'application/json' };
+  if (key.startsWith('eyJ')) h.Authorization = 'Bearer ' + key;
+  return h;
+}
+async function fail(r, what) {
+  const t = await r.text().catch(() => '');
+  console.log('db', what, r.status, t.slice(0, 200));
+  throw new Error('db ' + r.status);
 }
 async function get(path) {
   const r = await fetch(SUPABASE_URL + '/rest/v1/' + path, { headers: admin() });
-  if (!r.ok) throw new Error('db ' + r.status);
+  if (!r.ok) await fail(r, 'get ' + path.split('?')[0]);
   return r.json();
 }
 async function patch(path, body) {
   const r = await fetch(SUPABASE_URL + '/rest/v1/' + path, { method: 'PATCH', headers: Object.assign(admin(), { Prefer: 'return=minimal' }), body: JSON.stringify(body) });
-  if (!r.ok) throw new Error('db ' + r.status);
+  if (!r.ok) await fail(r, 'patch');
 }
 async function del(path) {
   await fetch(SUPABASE_URL + '/rest/v1/' + path, { method: 'DELETE', headers: Object.assign(admin(), { Prefer: 'return=minimal' }) });
