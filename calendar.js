@@ -315,7 +315,7 @@ document.querySelectorAll('[data-meal]').forEach(b => b.onclick = () => showReci
     });
   };
   window.cooDay = function (ds) {
-    const items = itemsOn(ds, false).filter(x => x.tid ? !!((S.tasks || []).find(t => t.id === x.tid) || {}).shared : !x.who);
+    const items = itemsOn(ds, false).filter(x => x.chore ? true : (x.tid ? !!((S.tasks || []).find(t => t.id === x.tid) || {}).shared : !x.who));
     return { items, meals: mealsOn(ds) };
   };
 })();

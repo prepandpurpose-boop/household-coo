@@ -745,7 +745,10 @@ function save(){
       onboarded:A.onboarded,
       lunch_bank:A.lunchBank||0,
       lunch_bank_meals:A.lunchBankMeals||[],
-      // weekProteins session-only
+      recent_meals:A.recentMeals||[],
+      last_built_protein:A.lastBuiltProtein||'',
+      last_built_meal:A.lastBuiltMeal||'',
+      last_built_breakfast:A.lastBuiltBreakfast||'',
     };
     const dataWithTs={...data,updated_at:new Date().toISOString()};
     window.__kSave(dataWithTs);
@@ -813,6 +816,10 @@ async function loadUserData(email){
     if(!A.lastBuiltBreakfast)A.lastBuiltBreakfast=localStorage.getItem('pp_last_breakfast')||'';
     if(!A.lastBuiltMeal)A.lastBuiltMeal=localStorage.getItem('pp_last_meal')||'';
     A.lunchBankMeals=source.lunch_bank_meals||[];
+    A.recentMeals=source.recent_meals||[];
+    if(source.last_built_protein)A.lastBuiltProtein=source.last_built_protein;
+    if(source.last_built_meal)A.lastBuiltMeal=source.last_built_meal;
+    if(source.last_built_breakfast)A.lastBuiltBreakfast=source.last_built_breakfast;
     A.calendarByDate=source.calendar_by_date||{};
     A.grocery=source.grocery||[];
     A.prices=source.prices||{};A.receipts=source.receipts||[];
@@ -1886,6 +1893,7 @@ The title you write MUST match the actual protein form in the pull list.
 - Pull list shows "Diced Chicken/Beef" → title CAN say Chicken or Beef but not a specific cut name unless that cut was the raw ingredient.
 - Cut names (Chops, Steak, Breast, Fillet, Tenderloin, Roast) are ONLY allowed when that raw cut is explicitly in the pull list as a fresh/raw purchase.
 Read your pull list. If you wrote "Ground Pork" — the word "Chops" cannot appear in the title. No exceptions.
+The title must name the ingredient in the form it is actually in: ground pork is "Ground Pork" or "Pork Skillet", never "Pork Chops"; ground beef is never "Steak"; shredded chicken is never "Chicken Breast". The same rule applies to the description and the steps.
 
 RESPOND WITH VALID JSON ONLY:
 {
@@ -1910,7 +1918,9 @@ QUANTITY RULES: Meat=weight only. No piece counts. Eggs=whole numbers round up. 
 ${grabAndGo?'GRAB AND GO MODE: ON — build a batchable item with yield, storage instructions, and grab size.':''}
 ${!includeSoups?'SOUPS OFF: No soups, stews, chilis, or broth-based dishes under any circumstances.':''}
 ${mealType==='Breakfast'?`BREAKFAST VARIETY RULE: Last breakfast built was "${A.lastBuiltBreakfast||'none'}". Build something COMPLETELY DIFFERENT.`:''}
-${mealType!=='Breakfast'?`LAST MEAL BUILT: "${A.lastBuiltMeal||'none'}" — build something completely different.`:''}
+${mealType!=='Breakfast'?`LAST MEAL BUILT: "${A.lastBuiltMeal||'none'}" — build something completely different.
+RECENT MEALS (do not build any of these again, or a close variation of them, and do not reuse the same format + sauce base): ${(A.recentMeals||[]).length?(A.recentMeals||[]).map(m=>'"'+m.t+'" ('+(m.f||'any')+')').join(', '):'none yet'}.
+VARIETY WITHIN A CUISINE: every cuisine has many different dishes. Within "${flavor||'Surprise Me'}" rotate across at least 8 genuinely different dishes over time (different format, different sauce or seasoning base, different cooking method, different starch). Italian is not only pasta with red sauce; Mexican is not only tacos; Southern is not only smothered chicken; Asian-Style is not only stir fry. Pick the dish in that cuisine that is furthest from the recent meals above.`:''}
 ${A.lastBuiltProtein&&mealType!=='Breakfast'?`LAST PROTEIN USED: "${A.lastBuiltProtein}" — use a DIFFERENT protein this time. Rotate.`:''}
 ${buildEmergency?'EMERGENCY MEAL MODE: ON — dinner only, double batch, gallon bags or freezer containers, complete meal, reheats perfectly':''}
 ${kidFriendly?'KID FRIENDLY MODE: ON — mild flavors, nut-free, kid-friendly formats for all meal types, kid portions':''}
@@ -2007,12 +2017,11 @@ DO NOT build a dinner or lunch that is only beans, grains, vegetables, or cheese
       const cutWords=[/pork chops?/gi,/chicken chops?/gi,/chicken breasts?/gi,/chicken thighs?/gi,/beef steak/gi,/pork tenderloin/gi,/pork loin/gi,/sirloin/gi,/ribeye/gi,/filet/gi,/fillet/gi,/t-bone/gi];
       const replacements={ground:'Skillet',shredded:'Bowl'};
       const replWord=hasShreddedProt?'Bowl':'Skillet';
-      cutWords.forEach(re=>{
-        if(re.test(cleanTitle)){
-          // Replace cut name with appropriate word
-          cleanTitle=cleanTitle.replace(re,replWord);
-        }
-      });
+      // Also add the real form to the title when the cut word is replaced, e.g. "Ground Pork Skillet".
+      const formWord=hasShreddedProt?'Shredded':'Ground';
+      const prot=/pork/i.test(pullNames)?'Pork':(/beef/i.test(pullNames)?'Beef':(/turkey/i.test(pullNames)?'Turkey':(/chicken/i.test(pullNames)?'Chicken':'')));
+      cutWords.forEach(re=>{ cleanTitle=cleanTitle.replace(re,(prot?formWord+' '+prot+' ':'')+replWord); });
+      cleanTitle=cleanTitle.replace(/(Ground|Shredded) (Pork|Beef|Turkey|Chicken) (Skillet|Bowl)( \1 \2 \3)+/g,'$1 $2 $3');
       // Clean up double spaces
       cleanTitle=cleanTitle.replace(/\s+/g,' ').trim();
     }
@@ -2021,6 +2030,7 @@ DO NOT build a dinner or lunch that is only beans, grains, vegetables, or cheese
     if(mealType==='Breakfast')A.lastBuiltBreakfast=recipe.title||'';
     else{
       A.lastBuiltMeal=recipe.title||'';
+      A.recentMeals=((A.recentMeals||[]).concat([{t:cleanTitle,f:flavor||'',d:dateKey(new Date())}])).slice(-12);
       // Track protein used — check cookList first, then groceryFlags
       const proteinFromCook=recipe.cookList?.[0]?.protein||'';
       const proteinFromGroc=(recipe.groceryFlags||[]).find(g=>
