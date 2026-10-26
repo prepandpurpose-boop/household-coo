@@ -43,6 +43,8 @@ const TVN = [];
 '#tv .mi{font-size:clamp(11px,1.7vh,20px);line-height:1.2;margin-top:.4vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
 '#tv .mi b{color:#2f7d4f}' +
 '#tv .mi.done{text-decoration:line-through;opacity:.5}' +
+'#tv .od{background:#8f3a2f;color:#fff;border-radius:12px;padding:1vh 1.4vw;margin-bottom:1.4vh;font-size:clamp(15px,2.4vh,30px);font-weight:600}' +
+'#tv .od b{color:#F0D58C;margin-right:.6em}' +
     '</style>';
 
   function monthHtml() {
@@ -60,6 +62,12 @@ cells += '<div class="mc tvc' + (d.getMonth() !== base.getMonth() ? ' out' : '')
 return '<div class="mg">' + cells + '</div>';
 }
 
+function overdueHtml() {
+    const od = (typeof choreOverdue === 'function') ? choreOverdue() : [];
+    if (!od.length) return '';
+    const nm = id => { const m = (S.members || []).find(x => x.user_id === id); return m ? (m.display_name || 'Someone') : 'Someone'; };
+    return '<div class="od"><b>OVERDUE</b>' + od.map(t => esc(t.title) + ' \u2014 ' + esc(nm(t.assigned_to))).join(' &middot; ') + '</div>';
+  }
 function html() {
     const now = new Date();
     let cols = ''; TVN.length = 0;
@@ -75,7 +83,7 @@ function html() {
 const tabs = '<div class="tabs"><button class="tvb' + (wk ? '' : ' on') + '" data-tvv="month">Month</button><button class="tvb' + (wk ? ' on' : '') + '" data-tvv="week">Next 7 days</button>' + (wk ? '' : '<button class="tvb" data-tvm="-1">&#8249;</button><span class="mt">' + MONTHS[mo.getMonth()] + ' ' + mo.getFullYear() + '</span><button class="tvb" data-tvm="1">&#8250;</button>') + '</div>';
 return CSS + '<div id="tv">' + (S.tvLocked ? '' : '<button class="x" id="tvx" aria-label="Close TV view">&#10005;</button>') +
       '<div class="top"><div><div class="nm">' + esc((S.hh && S.hh.name) || 'Household') + '</div><div class="dt" id="tvdate"></div></div><div class="tm" id="tvtime"></div></div>' +
-      tabs + (wk ? '<div class="grid">' + cols + '</div>' : monthHtml()) + '</div>';
+      overdueHtml() + tabs + (wk ? '<div class="grid">' + cols + '</div>' : monthHtml()) + '</div>';
   }
   function tick() {
     const n = new Date(), t = document.getElementById('tvtime'), d = document.getElementById('tvdate');
@@ -105,7 +113,7 @@ if (S.tvLocked) return;
   }
   async function refresh() {
     try { await loadTasks(); await loadKitchen(); await loadCal(); } catch (e) { console.warn(e); }
-    if (S.tv && !document.getElementById('coo-ov')) draw();
+    if (S.tv && !document.getElementById('coo-ov') && !document.getElementById('ch_ov')) draw();
   }
   window.tvStart = function () {
     S.tv = true; draw();

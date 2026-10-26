@@ -435,7 +435,7 @@ html,body{height:100%;overflow:hidden;font-family:'Jost',sans-serif;background:v
 <div id="modal"><div id="modal-content"></div></div>
 
 <script>
-// ─── STORAGE: localStorage only — no Supabase ────────────────────────────────
+// ─── STORAGE: the Household COO shell saves and loads the data ──────────────────────────────────
 function showSaveStatus(msg){
   let el=document.getElementById('save-status');
   if(!el){
@@ -795,7 +795,7 @@ function mergePantryWithDefaults(saved,defaults){
 }
 
 async function loadUserData(email){
-  // localStorage only — no Supabase
+  // Data comes from the Household COO shell
   let source=null;
   try{
     const localRaw=(window.__KRAW||null);
@@ -911,6 +911,7 @@ function rcConvert(it,unit){
   const q=+it.qty||1,tot=(+it.sizeValue||0)*q;
   if(tot>0&&UNIT_OZ[it.sizeUnit]){const oz=tot*UNIT_OZ[it.sizeUnit];if(unit==='lbs')return oz/16;if(unit==='oz')return oz;}
   if(tot>0&&(it.sizeUnit==='gal'||it.sizeUnit==='qt')&&unit==='cups')return tot*(it.sizeUnit==='gal'?16:4);
+  if(tot>0&&(it.sizeUnit==='ct'||it.sizeUnit==='each'))return tot;
   return q;
 }
 function rcAdd(m,it){
@@ -931,6 +932,7 @@ function rcError(msg,retry){
 }
 function rcLoading(t){openModal('<div class="modal-header"><div class="modal-title">'+t+'</div></div><div style="padding:6px 0 18px;font-size:14px">This takes about 15 seconds. Keep this open.</div>');}
 
+function showToast(t){rcToast(t);}
 function rcToast(t){const d=document.createElement('div');d.textContent=t;d.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#14213d;color:#fff;padding:12px 18px;border-radius:12px;z-index:99999;font-size:14px;max-width:90%;text-align:center';document.body.appendChild(d);setTimeout(()=>d.remove(),4500);}
 let _rc=null;
 function rcIntro(kind){const rec=kind==='receipt';
@@ -980,6 +982,7 @@ function saveReceipt(){
   });
   A.receipts.push({id:Date.now(),date,store:r.store||'',count:used.length});
   A.receipts=A.receipts.slice(-50);
+  try{const raw=JSON.parse(window.__KRAW);delete raw.rcQueue;window.__KRAW=JSON.stringify(raw);}catch(e){}
   save();
   if(A._seesMoney&&+r.total>0){try{parent.postMessage({type:'receipt-spend',date,store:r.store||'',total:+r.total},location.origin);}catch(e){}}
   closeModal();render();
@@ -1028,6 +1031,7 @@ function rcProcessQueue(){
       (A.prices[key]=A.prices[key]||[]).push({d:date,store:r.store||'',price:Math.round((+it.price/qq)*100)/100,size:rcSize(it.sizeValue,it.sizeUnit),per:up?Math.round(up.p*10000)/10000:null,perLabel:up?up.l:''});
       if(A.prices[key].length>20)A.prices[key]=A.prices[key].slice(-20);
       if(it.match)rcAdd(it.match,it);
+      else{const cat=/milk|cheese|yogurt|butter|egg|cream/i.test(it.name)?'fridge':(/flour|sugar|baking|yeast|oil/i.test(it.name)?'baking':'dry');A.pantry=A.pantry||{};if(!A.pantry[cat])A.pantry[cat]=[];A.pantry[cat].push({id:'rc_'+Date.now()+'_'+Math.random().toString(36).slice(2,5),name:String(it.name||'').trim(),qty:+it.qty||1,unit:rcSize(it.sizeValue,it.sizeUnit)||'each',have:true});}
       const iw=rcWords(it.name);
       const g=(A.grocery||[]).find(x=>{if(x.done)return false;const xw=rcWords(x.name);const hit=xw.filter(w=>iw.includes(w)).length;return xw.length&&hit/xw.length>=0.6;});
       if(g)g.done=true;
@@ -1368,7 +1372,7 @@ function rPantry(){
     condiments:{label:'🥫 Condiments & Sauces',type:'qty'},
     spices:{label:'🧂 Spices',type:'qty'},
   };
-  let html=`<div class="page-sub">Track what is in your kitchen. Fresh items are prioritized — the AI uses them first so nothing goes to waste.</div>
+  let html=`<div class="page-sub">Track what is in your kitchen. Fresh items are prioritized — the meal builder uses them first so nothing goes to waste.</div>
     <div style="font-size:11px;color:var(--text-muted);background:white;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:16px;line-height:1.5">
       📦 <strong>What deducts automatically:</strong> Frozen bases, frozen/canned/dry supports, home canned jars, and measured kitchen items (butter, flour, sugar, fresh produce, milk, eggs) all deduct when you schedule a meal.<br>
       🧂 <strong>Oils, condiments, and spices</strong> are now tracked by quantity (oz or each). Enter how much you have — items at zero are treated as not stocked and won't be used in meal builds.
@@ -1508,7 +1512,7 @@ function rBuilderForm(){
         </div>
         <div class="r2">
           <div class="fg"><label class="lbl">Servings</label>
-            <input type="number" class="sel" id="sv" min="1" max="40" value="${A.householdSize||4}" style="text-align:center;font-size:16px;font-weight:600;color:var(--green)" placeholder="How many?">
+            <input type="number" class="sel" id="sv" min="1" value="${A.householdSize||4}" style="text-align:center;font-size:16px;font-weight:600;color:var(--green)" placeholder="How many?">
           </div>
           <div class="fg"><label class="lbl">Flavor</label>
             <select class="sel" id="fl">
@@ -1860,17 +1864,6 @@ PANTRY MODE IS ON — THIS OVERRIDES ALL PREVIOUS RULES ABOUT groceryFlags:
 - If you cannot build without flagging something, substitute a different ingredient from inventory
 - Leave groceryFlags as [] and build around what is listed above`:''}
 
-P&P BLEND TIP: In recipe steps that combine multiple spices, add a parenthetical at the end of that step with the blend name AND the amount to use. Always include the measurement — she needs to know how much.
-Blend usage rates:
-- P&P House Blend (replaces salt+pepper+garlic powder+onion powder+paprika): use 1-2 tsp per lb of meat, or 1 tsp per cup of sauce/veg
-- P&P Italian Herb & Garlic (replaces basil+oregano+parsley+thyme+rosemary+garlic powder): use 1 tbsp per 2 cups tomato sauce or per lb of pasta
-- P&P Lemon Pepper Garlic Salt (replaces salt+black pepper+lemon+garlic powder): use 1 tsp per lb chicken or fish
-- P&P Smoky BBQ Rub (replaces brown sugar+smoked paprika+garlic+onion+chili+pepper): use 1-2 tbsp per lb of meat
-- P&P Taco Seasoning (replaces chili powder+cumin+paprika+garlic+onion+oregano+salt+pepper+cayenne): use 2-3 tbsp per lb ground meat + 1/2 cup water
-- P&P Cinnamon Sugar Spice (replaces cinnamon+nutmeg+sugar): use 1-2 tsp per serving
-Format: "(or use [X amount] P&P [Blend Name] instead of the [spices it replaces])"
-Example: "(or use 1.5 tsp P&P House Blend instead of the salt, pepper, garlic powder, and onion powder)"
-Only mention the blend that matches the spices in that step. Never list blends in the pull list.
 
 COOK TIME — ALWAYS REQUIRED: Every recipe must include a "cookTime" field formatted as:
 "Preheat [temp] · Active prep: [X] min · [Cook method]: [Y] min · Total: [Z] min"
@@ -1878,7 +1871,7 @@ Examples: "Preheat 375°F · Active prep: 15 min · Bake: 35 min · Total: 50 mi
           "Active prep: 20 min · Simmer: 25 min · Total: 45 min"
           "Active prep: 10 min · Stovetop: 20 min · Total: 30 min"
 For emergency meals: "Active prep: 30 min · Cook: 45 min · Cool: 90 min · Total cook session: ~3 hrs"
-This appears at the top of the recipe so she knows the full time commitment before starting.
+This appears at the top of the recipe so the user knows the full time commitment before starting.
 
 PRE-COOKED PROTEIN FINAL CHECK — before writing any step:
 Scan your pull list. If ANY item says "Already cooked — heat gently" or "lbs cooked":
@@ -1975,7 +1968,7 @@ DO NOT build a dinner or lunch that is only beans, grains, vegetables, or cheese
       showPage('builder');
       setTimeout(()=>openModal(`<div class="modal-header"><div class="modal-title">Unable to Build Meal</div><button class="modal-close" onclick="closeModal()">×</button></div>
         <div style="font-size:15px;line-height:1.7;margin-bottom:16px">${msg}</div>
-        <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px">If this keeps happening, contact us at <a href="mailto:support@prepandpurpose.com" style="color:var(--green)">support@prepandpurpose.com</a></div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px">If this keeps happening, contact us at <a href="mailto:support@provisionhouse.org" style="color:var(--green)">support@provisionhouse.org</a></div>
         <button class="btn btn-primary btn-full" onclick="closeModal()">Got It</button>`),100);
       return;
     }
@@ -1999,7 +1992,7 @@ DO NOT build a dinner or lunch that is only beans, grains, vegetables, or cheese
     try{recipe=JSON.parse(raw);}
     catch(e){
       console.error('JSON parse failed:',raw);
-      alert('Could not parse recipe. Try again.');
+      rcToast('The meal did not come back right. Please try again.');
       showPage('builder');return;
     }
     // ── Title sanitizer — runs after every build ──────────────────────
@@ -2023,7 +2016,7 @@ DO NOT build a dinner or lunch that is only beans, grains, vegetables, or cheese
       // Clean up double spaces
       cleanTitle=cleanTitle.replace(/\s+/g,' ').trim();
     }
-    A.recipe={...recipe,servings:servings,id:Date.now(),title:cleanTitle,title:recipe.title||'Your Meal',description:recipe.description||'',cookTime:recipe.cookTime||'',macros:recipe.macros||{cal:400,protein:35,carbs:30,fat:14},pull:(recipe.pull||[]).map(p=>({...p,qty:cleanQty(p.qty),item:cleanQty(p.item),prepNote:p.prepNote?cleanQty(p.prepNote):p.prepNote})),steps:recipe.steps||[],tip:recipe.tip||''};
+    A.recipe={...recipe,servings:servings,id:Date.now(),title:cleanTitle,description:recipe.description||'',cookTime:recipe.cookTime||'',macros:recipe.macros||{cal:400,protein:35,carbs:30,fat:14},pull:(recipe.pull||[]).map(p=>({...p,qty:cleanQty(p.qty),item:cleanQty(p.item),prepNote:p.prepNote?cleanQty(p.prepNote):p.prepNote})),steps:recipe.steps||[],tip:recipe.tip||''};
     // Track last built for variety enforcement
     if(mealType==='Breakfast')A.lastBuiltBreakfast=recipe.title||'';
     else{
@@ -2048,7 +2041,7 @@ DO NOT build a dinner or lunch that is only beans, grains, vegetables, or cheese
     showPage('builder');
   }catch(e){
     A.generating=false;
-    alert('Generation failed: '+e.message);
+    rcToast('The meal builder could not finish. Please try again.');
     showPage('builder');
   }
 }
@@ -2109,7 +2102,7 @@ function rRecipe(){
       ${isEmergency?`
       <div class="section-head">🚨 Log This Emergency Meal</div>
       <div class="alert alert-green" style="margin-bottom:14px"><span>✅</span><div>This goes straight to your Emergency supply — not on the dinner calendar. Deducts inventory for 2 full batches.</div></div>
-      <div class="fg"><label class="lbl">Date Made</label><input class="inp" type="date" id="em-made-date" value="${new Date().toISOString().slice(0,10)}" style="cursor:pointer"></div>
+      <div class="fg"><label class="lbl">Date Made</label><input class="inp" type="date" id="em-made-date" value="${dateKey(new Date())}" style="cursor:pointer"></div>
       <div class="fg"><label class="lbl">Gallon Bags</label><input class="inp" type="number" id="em-made-qty" value="2" min="1" max="10"></div>
       <button class="btn btn-primary btn-full btn-lg" style="margin-bottom:8px" onclick="logEmergencyMeal()">🚨 Log Emergency Meals & Deduct Inventory</button>
       <button class="btn btn-outline btn-full" style="margin-bottom:8px" onclick="printRecipe()">🖨️ Print This Recipe</button>
@@ -2675,7 +2668,7 @@ function logDinnerAsEmergency(){
   showToast('🚨 '+qty+' emergency meal'+(qty!==1?'s':'')+' logged — '+A.emergency[A.emergency.length-1]?.name||'');
 }
 function logEmergencyMeal(){
-  const dateVal=document.getElementById('em-made-date')?.value||new Date().toISOString().slice(0,10);
+  const dateVal=document.getElementById('em-made-date')?.value||dateKey(new Date());
   const qty=+document.getElementById('em-made-qty')?.value||2;
   // Deduct inventory for double batch
   deductInventory(A.recipe.pull);
@@ -3111,7 +3104,7 @@ function rFavorites(){
         </div>
         <div class="fg">
           <label class="lbl">Rebuild for how many servings?</label>
-          <input type="number" class="sel" id="fav-sv-${i}" min="1" max="40" value="${fav.servings||4}" style="text-align:center;font-size:16px;font-weight:600;color:var(--green)" placeholder="How many?">
+          <input type="number" class="sel" id="fav-sv-${i}" min="1" value="${fav.servings||4}" style="text-align:center;font-size:16px;font-weight:600;color:var(--green)" placeholder="How many?">
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary btn-full" data-idx="${i}" onclick="rebuildFavorite(+this.dataset.idx)">🔄 Rebuild</button>
@@ -3149,7 +3142,7 @@ function printWeekCalendar(){
   <style>body{font-family:Arial,sans-serif;padding:20px;color:#1a1a1a}h2{color:#1e4d35;margin-bottom:4px}p{color:#666;font-size:13px;margin-bottom:16px}table{width:100%;border-collapse:collapse}th{background:#1e4d35;color:#fff;padding:10px 8px;border:1px solid #ddd;font-size:13px;text-align:center}td{vertical-align:top}@media print{body{padding:10px}}</style>
   </head><body>
   <h2>🥗 Meal Plan — ${label}</h2>
-  <p>Provision House · household-coo.vercel.app</p>
+  <p>Provision House · app.provisionhouse.org</p>
   <table>
     <thead><tr>
       <th style="width:80px">Slot</th>
@@ -3251,7 +3244,7 @@ function printMonthCalendar(){
   <style>body{font-family:Arial,sans-serif;padding:16px;color:#1a1a1a}h2{color:#1e4d35;margin-bottom:4px}p{color:#666;font-size:12px}table{width:100%;border-collapse:collapse}th{background:#1e4d35;color:#fff;padding:8px;border:1px solid #ddd;font-size:12px}@media print{body{padding:8px}}</style>
   </head><body>
   <h2>📅 ${monthLabel} — Meal Plan</h2>
-  <p>Provision House · household-coo.vercel.app</p>
+  <p>Provision House · app.provisionhouse.org</p>
   <table><thead><tr>${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map(d=>`<th>${d}</th>`).join('')}</tr></thead>
   <tbody>${tableRows}</tbody></table>
   <p style="margin-top:12px;font-size:10px;color:#999">Printed from Household COO · Reduce decisions. Install structure.</p>
@@ -3762,7 +3755,7 @@ function setSupportState(id,state){
 
 // ─── EMERGENCY ─────────────────────────────────────────────────────────────────
 function openAddEmergency(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=dateKey(new Date());
   openModal(`<div class="modal-header"><div class="modal-title">Log Emergency Meal</div><button class="modal-close" onclick="closeModal()">×</button></div>
     <div class="fg"><label class="lbl">Meal Name</label><input class="inp" id="em-name" placeholder="e.g. Beef & Rice Bowl, Turkey Chili"></div>
     <div class="r2">
@@ -3815,7 +3808,7 @@ function printEmergencyRecipe(id){
   <h3>STEPS</h3>
   ${(r.steps||[]).map((s,i)=>`<div class="step"><div class="num">${i+1}</div><div>${s}</div></div>`).join('')}
   ${r.tip?`<div class="tip">${r.tip}</div>`:''}
-  <p style="margin-top:20px;font-size:11px;color:#999">Provision House · household-coo.vercel.app · Reduce decisions. Install structure.</p>
+  <p style="margin-top:20px;font-size:11px;color:#999">Provision House · app.provisionhouse.org · Reduce decisions. Install structure.</p>
   </body></html>`;
   const w=window.open('','_blank');w.document.write(html);w.document.close();w.print();
 }
@@ -3975,7 +3968,7 @@ function rGuide(){
       <div style="font-size:22px;flex-shrink:0">🥩</div>
       <div>
         <div style="font-size:14px;font-weight:700;margin-bottom:4px">Inventory — Bases</div>
-        <div style="font-size:13px;color:var(--text-muted);line-height:1.5">Frozen cooked proteins in quart bags. <strong>1 bag = 1.5 lbs cooked.</strong> This is the foundation — cook once, pull all week. Log what's in your freezer so the AI knows what to build with.</div>
+        <div style="font-size:13px;color:var(--text-muted);line-height:1.5">Frozen cooked proteins in quart bags. <strong>1 bag = 1.5 lbs cooked.</strong> This is the foundation — cook once, pull all week. Log what's in your freezer so the meal builder knows what to build with.</div>
       </div>
     </div>
   </div>
@@ -4065,7 +4058,7 @@ Print the recipe to see everything you need — check off what you have, pick up
 
   <div class="card" style="margin-bottom:8px;padding:14px 16px">
     <div style="font-size:14px;font-weight:700;margin-bottom:8px">✅ Update inventory before building meals</div>
-    <div style="font-size:13px;color:var(--text-muted);line-height:1.5">The AI builds from what you've logged. If your freezer says 0 bags of chicken but you have 4, the AI doesn't know. Take 2 minutes to update counts before your weekly build session.</div>
+    <div style="font-size:13px;color:var(--text-muted);line-height:1.5">The AI builds from what you've logged. If your freezer says 0 bags of chicken but you have 4, the meal builder doesn't know. Take 2 minutes to update counts before your weekly build session.</div>
   </div>
 
   <div class="card" style="margin-bottom:8px;padding:14px 16px">
@@ -4074,7 +4067,7 @@ Print the recipe to see everything you need — check off what you have, pick up
   </div>
 
   <div class="card" style="margin-bottom:8px;padding:14px 16px">
-    <div style="font-size:14px;font-weight:700;margin-bottom:8px">✅ Log fresh produce so the AI uses it first</div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:8px">✅ Log fresh produce so the meal builder uses it first</div>
     <div style="font-size:13px;color:var(--text-muted);line-height:1.5">Got zucchini from the garden or onions from the store? Log them in Kitchen Staples → Fresh Produce. The AI prioritizes fresh items before frozen so nothing goes to waste.</div>
   </div>
 
@@ -4129,7 +4122,7 @@ Print the recipe to see everything you need — check off what you have, pick up
   </div>
   <div style="text-align:center;padding:24px 0;font-size:13px;color:var(--text-muted);line-height:1.6">
     Reduce decisions. Install structure.<br>
-    <strong style="color:var(--green)">Prep with Purpose.</strong>
+    <strong style="color:var(--green)">Household COO by Provision House.</strong>
   </div>`;
 }
 
@@ -4141,10 +4134,10 @@ function openSettings(){
     <div class="section-head">Household</div>
     <div class="fg" style="margin-bottom:16px">
       <label class="lbl">People you are feeding</label>
-      <input class="inp" id="st-size" type="number" min="1" max="100" step="1" value="${A.householdSize||4}">
+      <input class="inp" id="st-size" type="number" min="1" step="1" value="${A.householdSize||4}">
     </div>
     <div class="section-head">Dietary Restrictions</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Things the AI will never include — hard rules.</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Things the meal builder will never include — hard rules.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px" id="st-dietary">
       ${allPrefs.map(p=>`<div class="diet-chip ${dietary.includes(p)?'selected':''}" data-pref="${p}" onclick="toggleDietChip(this)">${p}</div>`).join('')}
     </div>
@@ -4153,17 +4146,13 @@ function openSettings(){
       <input class="inp" id="st-other" placeholder="e.g. No cilantro, extra spicy" value="${dietary.filter(d=>!allPrefs.includes(d)).join(', ')}">
     </div>
     <div class="section-head">Dietary Goals</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Things the AI optimizes toward — soft targets.</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Things the meal builder optimizes toward — soft targets.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px" id="st-goals">
       ${['High Protein','Low Carb','Low Fat','Mediterranean Diet'].map(g=>`<div class="diet-chip ${(A.dietaryGoals||[]).includes(g)?'selected':''}" data-pref="${g}" onclick="toggleDietChip(this)">${g}</div>`).join('')}
     </div>
 
     <button class="btn btn-primary btn-full" style="margin-bottom:8px" onclick="saveSettings()">Save Settings</button>
-    <div style="border-top:1px solid var(--border);margin:16px 0"></div>
-    <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Subscription</div>
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;line-height:1.6">Manage or cancel your subscription through the Stripe customer portal. Your data stays saved and you can resubscribe any time.</div>
-    <a href="https://billing.stripe.com/p/login/4gM00i2Nx1sqdo34FQffy00" target="_blank" class="btn btn-outline btn-full" style="margin-bottom:8px;text-decoration:none">Manage Subscription →</a>
-    <div style="font-size:11px;color:var(--text-hint);text-align:center">Need help? <a href="mailto:support@prepandpurpose.com" style="color:var(--green)">support@prepandpurpose.com</a></div>`);
+    <div style="font-size:11px;color:var(--text-hint);text-align:center">Need help? <a href="mailto:support@provisionhouse.org" style="color:var(--green)">support@provisionhouse.org</a></div>`);
 }
 function toggleDietChip(el){
   el.classList.toggle('selected');
@@ -4391,7 +4380,7 @@ function printBlankInventory(){
     <div><div class="sec">🧂 Kitchen Staples — On Hand</div><table><tbody>${pantryToggleRows}</tbody></table></div>
   </div>
 
-  <div class="ftr">Provision House · household-coo.vercel.app · Steward what you have, serve where you are.</div>
+  <div class="ftr">Provision House · app.provisionhouse.org · Steward what you have, serve where you are.</div>
   </body></html>`;
 
   const win=window.open('','_blank');

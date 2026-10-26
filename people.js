@@ -37,7 +37,7 @@
   };
 
   // The message a parent sends by text. The parent creates the sign-in, so the person only signs in.
-  const inviteText = (name, email, pw) => 'Hi ' + (name || '') + '! You are in ' + ((S.hh && S.hh.name) || 'our household') + ' on Household COO.\n\n1. Open https://household-coo.vercel.app\n2. Tap Sign in\n3. Email: ' + email + '\n4. Password: ' + pw + '\n\nDo not create an account. Just sign in.';
+  const inviteText = (name, email, pw) => 'Hi ' + (name || '') + '! You are in ' + ((S.hh && S.hh.name) || 'our household') + ' on Household COO.\n\n1. Open https://app.provisionhouse.org\n2. Tap Sign in\n3. Email: ' + email + '\n4. Password: ' + pw + '\n\nDo not create an account. Just sign in.';
   // Creates the sign-in for a waiting person. Returns 'created', 'updated', 'exists' or 'failed'.
   async function makeLogin(email, password, userId) {
     try {
@@ -112,7 +112,7 @@ const tvHelp = '<div class="card" style="margin-top:18px"><h2>Set up a TV screen
 '<ol style="padding-left:20px;line-height:1.6;margin:10px 0">' +
 '<li><b>Add a person</b> in the form above. Name: TV. Role: Staff. Email: use your own email and type +tv before the @ sign. For example, if your email is yourname@gmail.com, the TV email is <b>' + esc(ex) + '</b>. Nothing is sent to this email. Type a password of at least 8 characters in the Temporary password box and write it down. Tap Add person.</li>' +
 '<li><b>Tick the TV box.</b> Under Your household, find TV and tick This is the TV screen account.</li>' +
-'<li><b>On the TV</b>, open household-coo.vercel.app. Tap Sign in. Type the TV email and the password from step 1. Do not tap Create an account.</li>' +
+'<li><b>On the TV</b>, open app.provisionhouse.org. Tap Sign in. Type the TV email and the password from step 1. Do not tap Create an account.</li>' +
 '<li><b>The TV shows the family board only.</b> It cannot open anything else. If the TV does not change, reload it.</li></ol>' +
 '<p class="note">Forgot the TV password? Under Your household, tap Set password on the TV row and type a new one. Then sign in on the TV with the new password.</p>' +
 '<p class="note">The + sign works with Gmail and Google Workspace email. If your email provider does not accept it, use a different email address.</p></div>';

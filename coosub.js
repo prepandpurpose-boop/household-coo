@@ -1,11 +1,11 @@
 // Household COO · Money · the Household COO subscription as a default bill.
 // Every paying household gets one line in Recurring Expenses ("Household COO subscription") at its real plan:
-// $97 a month or $997 a year. It counts in the budget and the Pay Plan like any other bill.
+// $39 a month or $349 a year. It counts in the budget and the Pay Plan like any other bill.
 // The household can edit the amount, due date or plan, or remove it. The original default is kept next to the edit.
 // Comped (free) households never get the line. The default follows the plan in the subscription record unless the household edited it.
 (function () {
   const NAME = 'Household COO subscription';
-  const PRICE = { monthly: 97, yearly: 997 };
+  const PRICE = { monthly: 39, yearly: 349 };
   const r2 = n => Math.round(n * 100) / 100;
   const E = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const today = () => new Date().toISOString();

@@ -8,6 +8,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#14213d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Household COO">
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Jost,sans-serif;background:var(--bg2);color:var(--ink);font-size:16px}
@@ -60,13 +65,14 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
 <body>
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="config.js"></script>
-<script src="calendar.js?v=9"></script>
+<script src="config.js?v=2"></script>
+<script src="calendar.js?v=10"></script>
 <script src="kidmoney.js?v=1"></script>
 <script src="people.js?v=3"></script>
 <script src="receipts.js?v=2"></script>
 <script src="paywall.js?v=1"></script>
-<script src="tv.js?v=4"></script>
+<script src="tv.js?v=5"></script>
+<script src="chores.js?v=1"></script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -183,6 +189,7 @@ async function load(){
 if(S.cal&&S.cal.tv&&S.cal.tv[S.user.id]&&!isManager()&&typeof tvStart==='function'){S.tvLocked=true;tvStart();return}
   if(!S.me.display_name){const n=prompt('What name should the household see for you?');if(n){await sb.rpc('set_my_name',{n});S.me.display_name=n;const i=S.members.findIndex(x=>x.user_id===S.user.id);if(i>=0)S.members[i].display_name=n}}
   S.page=S.me.role==='kid'?'tasks':'cal';
+  const pq=(location.search.match(/[?&]page=([a-z]+)/)||[])[1]; if(pq==='chores'){S.page='chores';history.replaceState(null,'',location.pathname);}
   if(/[?&]tv=1/.test(location.search)&&typeof tvStart==='function'){tvStart();return}
   shell();
 }
@@ -273,9 +280,9 @@ function navItems(){
   const kid=S.me.role==='kid', staff=['helper','staff'].includes(S.me.role);
   if(kid||staff){
     const mine=kid?(privateMoney()?[['money','Money'],['receipts','Receipts'],['add','Add what I need'],['dinner','Dinner']]:[['km','My money'],['add','Add what I need'],['dinner','Dinner']]):[];
-    return [['tasks','My tasks'],['cal','Command Center']].concat(mine);
+    return [['chores','Chores'],['tasks','My tasks'],['cal','Command Center']].concat(mine);
   }
-  const n=[['cal','Command Center'],['k:dashboard','Kitchen']];
+  const n=[['cal','Command Center'],['chores','Chores'],['k:dashboard','Kitchen']];
     if(seesMoney()){n.push(['money','Money']);n.push(['receipts','Receipts']);}
   n.push(['people','People']);
   return n;
@@ -306,9 +313,10 @@ function render(){
   }
   else if(S.page==='money'&&seesMoney()) m.innerHTML='<iframe id="mframe" src="money.html?v='+Date.now()+'" title="Money"></iframe>';
   else if(S.page==='receipts'&&seesMoney()) m.innerHTML=receiptsView();
+  else if(S.page==='chores') m.innerHTML=choresView();
   else if(S.page==='people') m.innerHTML=peopleView();
   else if(S.page==='km') m.innerHTML=kmView();
-  else if(S.page==='cal'||S.page==='home') m.innerHTML='<div style="text-align:right;margin-bottom:8px"><button class="btn ghost" id="tvgo">📺 Show on TV</button></div>'+calView()+openList();
+  else if(S.page==='cal'||S.page==='home') m.innerHTML='<div style="text-align:right;margin-bottom:8px"><button class="btn ghost" id="tvgo">📺 Show on TV</button></div>'+(typeof choreSummary==='function'?choreSummary():'')+calView()+openList();
   else if(S.page==='tasks'||S.page==='home') m.innerHTML=tasksView(S.page==='home');
   else if(S.page==='add') m.innerHTML=addView();
   else m.innerHTML=soon(S.page);
@@ -317,13 +325,13 @@ function render(){
 function soon(p){
   const t={kitchen:'Kitchen',money:'Money',dinner:'Dinner'}[p]||p;
   return `<div class="eyebrow">${t}</div><h1>Coming next.</h1><div class="rule"></div>
-  <div class="card soon"><p style="margin:0;color:var(--mute)">This part is being moved in from ${p==='money'?'CFO Command Center':'Meal Builder Pro'} so everything shares one household.</p></div>`;
+  <div class="card soon"><p style="margin:0;color:var(--mute)">This part is not ready yet.</p></div>`;
 }
 const nm=id=>{const m=S.members.find(x=>x.user_id===id);return m?(m.display_name||m.role):'Member'};
 function who(id){ if(!id)return 'Anyone'; return id===S.user.id?'You':nm(id) }
 function tasksView(home){
   const mine=S.me.role==='kid'||['helper','staff'].includes(S.me.role);
-  const list=S.tasks; const open=list.filter(t=>t.status!=='done'), done=list.filter(t=>t.status==='done');
+  const list=S.tasks.filter(t=>t.kind!=='chore'); const open=list.filter(t=>t.status!=='done'), done=list.filter(t=>t.status==='done');
   const add=`<div class="card" style="margin-bottom:18px"><h2>Add a task or appointment</h2>
    <label for="tt">What needs doing, or what is the appointment</label><input id="tt">
    ${mine?'':`<label for="th">Handoff note (so whoever does it knows exactly how)</label><textarea id="th"></textarea>
@@ -336,7 +344,7 @@ function tasksView(home){
    <div style="flex:1"><div class="${t.status==='done'?'done-t':''}" style="font-weight:600">${esc(t.title)}<span class="chip">${who(t.assigned_to)}</span>${t.kind==='appointment'?'<span class="chip" style="background:#F6EBC4">Appointment</span>':''}${t.due_date?`<span class="chip">${t.kind==='appointment'?'':'Due '}${esc(t.due_date)}${t.due_time?' '+esc(t.due_time):''}</span>`:''}</div>
    ${t.handoff_notes?`<div class="note">Note: ${esc(t.handoff_notes)}</div>`:''}</div></div>`;
   return `<div class="eyebrow">${esc(S.hh.name)}</div><h1>${home?'Home.':(mine?'My tasks.':'Tasks.')}</h1><div class="rule"></div>
-  ${home&&typeof calToday==='function'?calToday():''}${add}<div class="card"><h2>Open · ${open.length}</h2>${open.map(row).join('')||'<p class="note">Nothing open.</p>'}
+  ${mine&&typeof choreSummary==='function'?choreSummary():''}${home&&typeof calToday==='function'?calToday():''}${add}<div class="card"><h2>Open · ${open.length}</h2>${open.map(row).join('')||'<p class="note">Nothing open.</p>'}
   ${done.length?`<h2 style="margin-top:18px">Done · ${done.length}</h2>${done.map(row).join('')}`:''}</div>`;
 }
 function openList(){ const h=tasksView(false); const i=h.indexOf('<div class="card"><h2>Open'); return i<0?'':'<div style="margin-top:18px">'+h.slice(i)+'</div>'; }
@@ -364,6 +372,7 @@ function bind(){
   if(typeof kmBind==='function')kmBind();
   if(typeof peopleBind==='function')peopleBind();
   if(typeof receiptsBind==='function')receiptsBind();
+  if(typeof choresBind==='function')choresBind();
   const tvb=document.getElementById('tvgo');if(tvb)tvb.onclick=()=>tvStart();
 }
 sb.auth.onAuthStateChange((ev)=>{ if(ev==='PASSWORD_RECOVERY'){newPassword();return} if(ev==='SIGNED_IN'&&!S.user)load() });

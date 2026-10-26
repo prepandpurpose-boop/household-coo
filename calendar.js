@@ -13,7 +13,7 @@
   const TYPES = {
     todo: ['Task', '#2f5fa0'], appointment: ['Appointment', '#C59B27'], event: ['Event', '#C59B27'], birthday: ['Birthday', '#c0508a'],
     anniversary: ['Anniversary', '#8a5cc0'], maintenance: ['Maintenance', '#3a8a6a'],
-    bill: ['Bill', '#14213d'], payday: ['Payday', '#2f8f4e']
+    bill: ['Bill', '#14213d'], payday: ['Payday', '#2f8f4e'], chore: ['Chore', '#8f3a2f']
   };
   const todayISO = () => iso(new Date());
   const tm = v => { if (!v) return ''; const p = String(v).split(':'), h = +p[0]; return ((h + 11) % 12 + 1) + ':' + pad(+p[1] || 0) + (h >= 12 ? ' PM' : ' AM'); };
@@ -91,7 +91,7 @@
       const key = it.type === 'maintenance' ? 'm:' + it.id + '|' + ds : '';
       out.push({ type: it.type, title, who: it.who, rm: it.id, key, notes: it.notes, done: !!(key && S.cal.done[key]) });
     });
-    (S.tasks || []).forEach(t => { if (t.due_date === ds) out.push({ type: t.kind === 'appointment' ? 'appointment' : 'todo', title: (t.due_time ? tm(t.due_time) + ' ' : '') + t.title, who: t.assigned_to, tid: t.id, notes: t.handoff_notes, done: t.status === 'done' }); });
+    (S.tasks || []).forEach(t => { if (t.due_date !== ds) return; if (t.kind === 'chore') { out.push({ type: 'chore', title: (t.due_time ? tm(t.due_time) + ' ' : '') + t.title, who: t.assigned_to, chore: t.id, status: t.status, done: t.status === 'done' }); return; } out.push({ type: t.kind === 'appointment' ? 'appointment' : 'todo', title: (t.due_time ? tm(t.due_time) + ' ' : '') + t.title, who: t.assigned_to, tid: t.id, notes: t.handoff_notes, done: t.status === 'done' }); });
     if (moneyOK()) {
       const d = pd(ds);
       (S.mdata.overhead || []).forEach(o => {
@@ -111,6 +111,7 @@
 
   function rowHtml(it, ds, showDate) {
     const t = TYPES[it.type] || ['', '#666'];
+    if (it.chore) { const ct = (S.tasks || []).find(x => x.id === it.chore) || {}; return '<div class="cal-row"><span style="flex:0 0 28px"></span><div style="flex:1"><div class="' + (it.done ? 'done-t' : '') + '" style="font-weight:600"><span class="cal-tag" style="background:' + t[1] + '">Chore</span>' + esc(it.title) + (it.who ? '<span class="chip">' + esc(who(it.who)) + '</span>' : '') + (typeof chorePill === 'function' ? chorePill(ct) : '') + '</div>' + (showDate ? '<div class="note">' + DN[pd(ds).getDay()] + ' ' + MN[pd(ds).getMonth()].slice(0, 3) + ' ' + pd(ds).getDate() + '</div>' : '') + '</div><button class="btn ghost" style="min-height:32px;padding:0 12px" data-chopen="' + esc(it.chore) + '">Open</button></div>'; }
     const can = (it.tid && (canManage() || it.who === S.user.id)) || (it.key && canManage());
     const box = can ? '<button class="chk ' + (it.done ? 'done' : '') + '" ' + (it.tid ? 'data-tk="' + it.tid + '"' : 'data-ck="' + esc(it.key) + '"') + ' aria-label="Mark done">' + (it.done ? '&#10003;' : '') + '</button>' : '<span style="flex:0 0 28px"></span>';
     const dl = showDate ? '<div class="note">' + DN[pd(ds).getDay()] + ' ' + MN[pd(ds).getMonth()].slice(0, 3) + ' ' + pd(ds).getDate() + '</div>' : '';
@@ -122,7 +123,7 @@ const rm = it.rm && (canAdd() || it.who === S.user.id) ? '<button class="btn gho
 
   function overdue() {
     const t = todayISO(), out = [];
-    (S.tasks || []).forEach(x => { if (x.due_date && x.due_date < t && x.status !== 'done') out.push({ ds: x.due_date, it: { type: x.kind === 'appointment' ? 'appointment' : 'todo', title: x.title, who: x.assigned_to, tid: x.id, notes: x.handoff_notes, done: false } }); });
+    (S.tasks || []).forEach(x => { if (x.kind === 'chore') return; if (x.due_date && x.due_date < t && x.status !== 'done') out.push({ ds: x.due_date, it: { type: x.kind === 'appointment' ? 'appointment' : 'todo', title: x.title, who: x.assigned_to, tid: x.id, notes: x.handoff_notes, done: false } }); });
     if (false) for (let i = 7; i >= 1; i--) { const ds = addDays(t, -i); itemsOn(ds).forEach(it => { if (it.type === 'bill' && !it.done) out.push({ ds, it }); }); }
     return out;
   }
@@ -181,6 +182,7 @@ return '<h2 style="margin:0 0 4px">' + esc(title) + '</h2>' + (w ? '<div class="
 function showNotes(k, big) { const n = NOTES[k]; if (n) overlay(noteBody(n.title, n.notes, n.who), big); }
 window.cooRecipe = (ds, slot) => showRecipe(ds, slot, true);
 window.cooItem = (it, ds) => {
+if (it.chore && typeof choreOpen === 'function') { choreOpen(it.chore); return; }
 const t = TYPES[it.type] || ['Item', '#666'];
 const d = ds ? pd(ds) : null;
 const when = d ? DN[d.getDay()] + ', ' + MN[d.getMonth()] + ' ' + d.getDate() : '';
