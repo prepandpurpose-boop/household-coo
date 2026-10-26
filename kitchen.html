@@ -1666,6 +1666,7 @@ BEEF: 80/20 ground beef first (most versatile, cheapest ground) → chuck roast 
 TURKEY: whole turkey first (best value per pound) → bone-in thighs second → ground turkey third.
 FISH: canned tuna/salmon first (cheapest) → frozen tilapia or catfish second → frozen salmon third → fresh fish last.
 LAMB/OTHER: only if specifically anchored — never as a default suggestion.
+LOWEST TOTAL COST — applies to EVERYTHING that goes on the grocery list, not just the protein: the goal is great food at the lowest price. When the user must buy something, pick the in-season, cheapest option that still makes the dish great: in-season produce over out-of-season (no fresh asparagus in November, no fresh peaches in February), frozen or canned vegetables when they are cheaper and work as well, dried beans and rice over specialty grains, store-brand basics, and the cheapest cut in the hierarchy above. Keep the grocery list short: build the dish around what is on hand and only send them to the store for what the dish truly needs. The user can always override this by choosing their own protein or anchor.
 - Vegetarian selected: beans, chickpeas, lentils, tofu, tempeh, eggs ARE valid dinner centerpieces. Seasonal suggestion = most affordable plant protein.
 - Vegan selected: beans, chickpeas, lentils, tofu, tempeh ARE valid dinner centerpieces. No eggs.
 - Every dinner and lunch MUST have a protein centerpiece appropriate to the dietary setting.
@@ -1956,7 +1957,7 @@ PANTRY STAPLES ON HAND: ${toggles.length>0?toggles.join(', '):'None'}
 ${(mealType==='Dinner'||mealType==='Lunch')&&!A.dietary.includes('Vegetarian')?`FINAL INSTRUCTION — READ THIS LAST:
 This is ${mealType}. It MUST contain animal protein. No exceptions.
 ${allProteins.length===0?`No protein is stocked. Do ALL of the following:
-1. Pick the most seasonal protein for ${new Date().toLocaleString('en-US',{month:'long'})} — ${A.lastBuiltProtein?`DO NOT pick ${A.lastBuiltProtein} again, rotate to something different`:'chicken breasts are a safe default in grilling season'}
+1. Pick the protein that is in season AND cheapest per pound for ${new Date().toLocaleString('en-US',{month:'long'})}, following the PROTEIN BUDGET HIERARCHY above (cheapest cut first, never an expensive cut unless the user asked for it)${A.lastBuiltProtein?` — DO NOT pick ${A.lastBuiltProtein} again, rotate to something different`:''}
 2. Add it to the pull list with qty showing lbs needed and prepNote "Will need to purchase — see grocery list"
 3. Write the cooking steps as if the user HAS the protein — include full cooking instructions
 4. Flag it in groceryFlags with urgency "out" and reason "Typically on sale this time of year — buy extra and freeze"
