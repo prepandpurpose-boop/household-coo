@@ -51,6 +51,8 @@
     if (!S.calSel) S.calSel = todayISO();
   };
   async function saveCal() {
+    // Daily trackers are saved one person at a time (tracker.js). Pick up the newest ones first so this save never replaces them.
+    try { const { data } = await sb.from('app_data').select('data').eq('household_id', S.me.household_id).eq('module', 'calendar').maybeSingle(); if (data && data.data && data.data.trackers) S.cal.trackers = data.data.trackers; } catch (e) { console.warn(e); }
     const { error } = await sb.from('app_data').upsert({ household_id: S.me.household_id, module: 'calendar', data: S.cal, updated_at: new Date().toISOString() }, { onConflict: 'household_id,module' });
     if (error) alert(error.message);
   }
