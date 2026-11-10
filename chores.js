@@ -36,6 +36,7 @@
     '.ch-steps{padding-left:20px;line-height:1.5;margin:6px 0}',
     '.ch-row{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-top:1px solid var(--track)}.ch-row:first-child{border-top:0}',
     '.ch-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.ch-acts .btn{min-height:38px;padding:0 14px}',
+    '.ch-acts .ch-who{width:auto;min-height:38px;padding:0 10px;font-size:14px;font-weight:600}',
     '.ch-banner{background:#fbeeea;border:1px solid #e3b7ae;border-left:5px solid var(--red);border-radius:12px;padding:12px 16px;margin-bottom:18px}'
   ].join('');
   document.head.appendChild(css);
@@ -125,6 +126,7 @@
       '<div class="note">Due ' + esc(fmtDue(t)) + (t.repeat && t.repeat !== 'none' ? ' · repeats ' + (t.repeat === 'daily' ? 'every day' : 'every week') : '') + '</div>' +
       (t.redo_note && t.status === 'redo' ? '<div class="note" style="color:var(--red)">Sent back: ' + esc(t.redo_note) + '</div>' : '') +
       '<div class="ch-acts"><button class="btn ghost" data-chopen="' + t.id + '">Steps</button>' +
+      (t.status === 'open' || t.status === 'redo' ? '<select class="ch-who" data-chwho="' + t.id + '" aria-label="Change who does ' + esc(t.title) + '"><option value="">Change who</option>' + S.members.filter(x => !['helper', 'staff'].includes(x.role) && x.user_id !== t.assigned_to).map(x => '<option value="' + x.user_id + '">' + esc(nmOf(x.user_id)) + '</option>').join('') + '</select>' : '') +
       (t.status === 'submitted' ? '<button class="btn" data-chok="' + t.id + '">Approve</button><button class="btn ghost" data-chredo="' + t.id + '">Send back</button>' : '') +
       '<button class="btn ghost" data-chdel="' + t.id + '" aria-label="Remove">&#10005;</button></div></div>' +
       (photo && t.photo_path ? '<img class="ch-photo" data-chpic="' + esc(t.photo_path) + '" alt="Photo sent in" data-chopen2="' + t.id + '">' : '') + '</div>';
@@ -258,6 +260,15 @@
     document.querySelectorAll('[data-chsend]').forEach(b => b.onclick = () => { const t = chores().find(x => x.id === b.dataset.chsend); if (t) sendPhoto(t); });
     document.querySelectorAll('[data-chok]').forEach(b => b.onclick = () => { const t = chores().find(x => x.id === b.dataset.chok); if (t && confirm('Approve "' + t.title + '"?')) approve(t); });
     document.querySelectorAll('[data-chredo]').forEach(b => b.onclick = () => { const t = chores().find(x => x.id === b.dataset.chredo); if (t) sendBack(t); });
+    // A parent moves a chore to someone else. A repeating chore stays with the new person from then on.
+    document.querySelectorAll('[data-chwho]').forEach(sel => sel.onchange = async () => {
+      const t = chores().find(x => x.id === sel.dataset.chwho), to = sel.value; if (!t || !to) return;
+      if (!confirm('Give "' + t.title + '" to ' + nmOf(to) + '?')) { sel.value = ''; return; }
+      const { error } = await sb.from('tasks').update({ assigned_to: to, reminders: {} }).eq('id', t.id);
+      if (error) { alert('That did not save. Please try again.'); sel.value = ''; return; }
+      tellPush(t.id, 'assigned');
+      await loadTasks(); render();
+    });
     document.querySelectorAll('[data-chdel]').forEach(b => b.onclick = async () => {
       const t = chores().find(x => x.id === b.dataset.chdel); if (!t || !confirm('Remove "' + t.title + '"?')) return;
       await sb.from('tasks').delete().eq('id', t.id); await loadTasks(); render();
