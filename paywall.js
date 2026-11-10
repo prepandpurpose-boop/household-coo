@@ -26,9 +26,9 @@
     const head = '<div class="eyebrow">' + esc((S.hh && S.hh.name) || 'Household COO') + '</div><h1>' + (canceled ? 'Welcome back.' : 'One last step.') + '</h1><div class="rule"></div>';
     let body;
     if (mgr) {
-      body = '<p style="margin:0 0 14px">' + (canceled ? 'Your plan has ended. Pick a plan to turn your household back on.' : 'Pick a plan to turn on Household COO for your whole household. Everyone you add is included. Your first 14 days are free.') + '</p>' +
-        '<div class="card" style="margin:12px 0;padding:16px"><h2 style="margin:0">$39 a month</h2><p class="note" style="margin:6px 0 12px">14 days free, then $39 a month. Cancel any time.</p><a class="btn" style="display:inline-block;text-decoration:none;text-align:center" href="' + MONTHLY + ref + '">Choose monthly</a></div>' +
-        '<div class="card" style="margin:12px 0;padding:16px;border:2px solid var(--gold)"><h2 style="margin:0">$349 a year</h2><p class="note" style="margin:6px 0 12px">14 days free, then $349 for the year. Two months free compared to monthly.</p><a class="btn" style="display:inline-block;text-decoration:none;text-align:center" href="' + YEARLY + ref + '">Choose yearly</a></div>' +
+      body = '<p style="margin:0 0 14px">' + (canceled ? 'Your plan has ended. Pick a plan to turn your household back on.' : 'Pick a plan to turn on Household COO for your whole household. Everyone you add is included. Your first 14 days are a trial period.') + '</p>' +
+        '<div class="card" style="margin:12px 0;padding:16px"><h2 style="margin:0">$39 a month</h2><p class="note" style="margin:6px 0 12px">14-day trial period, then $39 a month. Cancel any time.</p><a class="btn" style="display:inline-block;text-decoration:none;text-align:center" href="' + MONTHLY + ref + '">Choose monthly</a></div>' +
+        '<div class="card" style="margin:12px 0;padding:16px;border:2px solid var(--gold)"><h2 style="margin:0">$349 a year</h2><p class="note" style="margin:6px 0 12px">14-day trial period, then $349 for the year. Save $119 compared to monthly.</p><a class="btn" style="display:inline-block;text-decoration:none;text-align:center" href="' + YEARLY + ref + '">Choose yearly</a></div>' +
         '<p class="note" style="margin:14px 0 0">Payment is handled by Stripe. We never see your card. When you finish paying you come straight back here.</p>' +
         '<div style="margin-top:14px"><button class="btn ghost" id="pw_check">I have paid. Check again.</button></div>';
     } else {
