@@ -9,7 +9,7 @@ const webpush = require('web-push');
 
 const SUPABASE_URL = 'https://utqgmylsdzoqovadrwbg.supabase.co';
 const SUPABASE_PUBLISHABLE = 'sb_publishable_dycz1DniVdRUep8rh--RMw_qkYH_uac';
-const SITE = 'https://app.provisionhouse.org';
+const SITE = 'https://householdcoo.provisionhouse.org';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const H = 3600 * 1000;
 
