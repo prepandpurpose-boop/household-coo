@@ -142,8 +142,8 @@
       (t.redo_note && t.status === 'redo' ? '<div class="note" style="color:var(--red)">Sent back: ' + esc(t.redo_note) + '. Fix it today and send a new photo.</div>' : '') +
       (t.proof_hint && open && needsPhoto(t) ? '<div class="note">Photo needed: ' + esc(t.proof_hint) + '</div>' : '') +
       '<div class="ch-acts">' + (t.steps || needsPhoto(t) ? '<button class="btn ghost" data-chopen="' + t.id + '">Steps</button>' : '') +
-      (open ? (needsPhoto(t) ? '<button class="btn" data-chsend="' + t.id + '">Done. Add my photo</button>' : '<button class="btn" data-chdone="' + t.id + '">Mark done</button><button class="btn ghost" data-chsend="' + t.id + '">Done with a photo</button>') : '') +
-      (!needsPhoto(t) && t.created_by === S.user.id && !mgr() ? '<button class="btn ghost" data-chdel="' + t.id + '" aria-label="Remove">&#10005;</button>' : '') + '</div></div>' +
+      (open && t.assigned_to === S.user.id ? (needsPhoto(t) ? '<button class="btn" data-chsend="' + t.id + '">Done. Add my photo</button>' : '<button class="btn" data-chdone="' + t.id + '">Mark done</button><button class="btn ghost" data-chsend="' + t.id + '">Done with a photo</button>') : '') + '</div>' +
+      (open && !t.assigned_to ? '<div class="note">This one is for anyone. Ask a parent to give it to you if you are doing it.</div>' : '') + '</div>' +
       (t.photo_path && !needsPhoto(t) ? '<img class="ch-photo" data-chpic="' + esc(t.photo_path) + '" alt="Photo added" data-chopen2="' + t.id + '">' : '') + '</div>';
   }
   const byDue = (a, b) => String(a.due_at || a.due_date || '').localeCompare(String(b.due_at || b.due_date || ''));
