@@ -70,7 +70,7 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
 <script src="kidmoney.js?v=1"></script>
 <script src="people.js?v=3"></script>
 <script src="receipts.js?v=2"></script>
-<script src="paywall.js?v=2"></script>
+<script src="paywall.js?v=3"></script>
 <script src="tv.js?v=5"></script>
 <script src="chores.js?v=3"></script>
 <script src="tracker.js?v=1"></script>
@@ -109,7 +109,7 @@ $('#root').innerHTML='<div class="center"><div class="card">'
 +'<div class="err" id="msg">'+esc(msg||'')+'</div>'
 +'<div style="margin-top:14px;display:flex;gap:14px;flex-wrap:wrap;font-size:14px">'
 +(up||fg?'<a href="#" id="s-in" style="color:var(--blue)">Back to sign in</a>':'<a href="#" id="s-up" style="color:var(--blue)">Create an account</a><a href="#" id="s-fg" style="color:var(--blue)">Forgot password</a>')
-+'</div></div></div>';
++'</div><p class="note" style="margin:16px 0 0;font-size:13px">By using Household COO you agree to the <a href="/terms.html" target="_blank" rel="noopener" style="color:var(--blue)">Terms of Use</a> and <a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--blue)">Privacy Policy</a>.</p></div></div>';
 const say=(t,good)=>{$('#msg').style.color=good?'var(--blue)':'';$('#msg').textContent=t};
 const sw=(id,m)=>{const a=document.getElementById(id);if(a)a.onclick=ev=>{ev.preventDefault();signIn('',m)}};
 sw('s-in','in');sw('s-up','up');sw('s-fg','forgot');
