@@ -2107,6 +2107,7 @@ function rRecipe(){
       <div class="section-head">🥄 Assembly Steps</div>
       ${r.steps.map((s,i)=>`<div class="step-row"><div class="step-num">${i+1}</div><div style="font-size:14px;line-height:1.6">${s}</div></div>`).join('')}
       ${r.tip?`<div class="tip-box">${r.tip}</div>`:''}
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-top:12px">Recipes, serving sizes and nutrition numbers are estimates made by the meal builder. Check every label for allergens. Cook meat, poultry, fish and eggs to a safe temperature. This is not medical or nutrition advice.</div>
     </div>
 
     <div class="card card-pad">
@@ -4275,7 +4276,7 @@ function _printRecipeObj(r,dateStr,slot){
     +(r.cookTime?'<div style="background:#1e4d35;color:#fff;border-radius:5px;padding:8px 12px;margin:10px 0;font-size:12px;font-weight:700">⏱️ '+r.cookTime+'</div>':'')
     +(steps.length>0?'<div class="sh">🥄 Steps</div><ol class="sl">'+steps.map(s=>'<li>'+s+'</li>').join('')+'</ol>':'')
     +(tip?'<div class="tip">💡 '+tip+'</div>':'')
-    +'<div class="ftr">Reduce decisions. Install structure. And as always — steward what you have, serve where you are.</div>'
+    +'<div class="ftr">Reduce decisions. Install structure. And as always — steward what you have, serve where you are.<br>Recipes and nutrition numbers are estimates. Check labels for allergens and cook food to a safe temperature. Not medical or nutrition advice.</div>'
     +'</body></html>';
   const win=window.open('','_blank');win.document.write(html);win.document.close();setTimeout(()=>win.print(),400);
 }
