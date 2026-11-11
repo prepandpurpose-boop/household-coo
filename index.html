@@ -66,13 +66,13 @@ label{font-size:14px;color:var(--mute);display:block;margin:12px 0 6px}
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js?v=2"></script>
-<script src="calendar.js?v=12"></script>
+<script src="calendar.js?v=13"></script>
 <script src="kidmoney.js?v=1"></script>
 <script src="people.js?v=3"></script>
 <script src="receipts.js?v=2"></script>
 <script src="paywall.js?v=3"></script>
 <script src="tv.js?v=5"></script>
-<script src="chores.js?v=3"></script>
+<script src="chores.js?v=4"></script>
 <script src="tracker.js?v=1"></script>
 <script>
 const $=s=>document.querySelector(s);
@@ -196,7 +196,7 @@ async function load2(){
   try{await loadCal()}catch(e){console.warn(e)}
 if(S.cal&&S.cal.tv&&S.cal.tv[S.user.id]&&!isManager()&&typeof tvStart==='function'){S.tvLocked=true;tvStart();return}
   if(!S.me.display_name){const n=prompt('What name should the household see for you?');if(n){await sb.rpc('set_my_name',{n});S.me.display_name=n;const i=S.members.findIndex(x=>x.user_id===S.user.id);if(i>=0)S.members[i].display_name=n}}
-  S.page=S.me.role==='kid'?'tasks':'cal';
+  S.page=S.me.role==='kid'?'chores':'cal';
   if(PAGE_ASK==='chores'){S.page='chores';if(/[?&]page=/.test(location.search))history.replaceState(null,'',location.pathname);}
   if(/[?&]tv=1/.test(location.search)&&typeof tvStart==='function'){tvStart();return}
   shell();
@@ -288,9 +288,9 @@ function navItems(){
   const kid=S.me.role==='kid', staff=['helper','staff'].includes(S.me.role);
   if(kid||staff){
     const mine=kid?(privateMoney()?[['money','Money'],['receipts','Receipts'],['add','Add what I need'],['dinner','Dinner']]:[['km','My money'],['add','Add what I need'],['dinner','Dinner']]):[];
-    return [['chores','Chores'],['tasks','My tasks'],['cal','Command Center']].concat(kid?[['tracker','Daily tracker']]:[]).concat(mine);
+    return [['chores','Tasks'],['cal','Command Center']].concat(kid?[['tracker','Daily tracker']]:[]).concat(mine);
   }
-  const n=[['cal','Command Center'],['chores','Chores'],['tracker','Daily tracker'],['k:dashboard','Kitchen']];
+  const n=[['cal','Command Center'],['chores','Tasks'],['tracker','Daily tracker'],['k:dashboard','Kitchen']];
     if(seesMoney()){n.push(['money','Money']);n.push(['receipts','Receipts']);}
   n.push(['people','People']);
   return n;
@@ -321,7 +321,7 @@ function render(){
   }
   else if(S.page==='money'&&seesMoney()) m.innerHTML='<iframe id="mframe" src="money.html?v='+Date.now()+'" title="Money"></iframe>';
   else if(S.page==='receipts'&&seesMoney()) m.innerHTML=receiptsView();
-  else if(S.page==='chores') m.innerHTML=choresView();
+  else if(S.page==='chores'||S.page==='tasks') m.innerHTML=choresView();
   else if(S.page==='tracker'&&typeof trackerView==='function') m.innerHTML=trackerView();
   else if(S.page==='people') m.innerHTML=peopleView();
   else if(S.page==='km') m.innerHTML=kmView();
@@ -374,6 +374,7 @@ function bind(){
   };
   document.querySelectorAll('.chk').forEach(b=>b.onclick=async()=>{
     const t=S.tasks.find(x=>x.id===b.dataset.t);
+    if(t.status!=='done'&&t.kind!=='appointment'&&typeof taskMarkDone==='function'){await taskMarkDone(t);return}
     await sb.from('tasks').update({status:t.status==='done'?'open':'done'}).eq('id',t.id);
     await loadTasks();render();
   });
