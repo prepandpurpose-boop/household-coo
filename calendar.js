@@ -13,7 +13,7 @@
   const TYPES = {
     todo: ['Task', '#2f5fa0'], appointment: ['Appointment', '#C59B27'], event: ['Event', '#C59B27'], birthday: ['Birthday', '#c0508a'],
     anniversary: ['Anniversary', '#8a5cc0'], maintenance: ['Maintenance', '#3a8a6a'],
-    bill: ['Bill', '#14213d'], payday: ['Payday', '#2f8f4e'], chore: ['Chore', '#8f3a2f']
+    bill: ['Bill', '#14213d'], payday: ['Payday', '#2f8f4e'], chore: ['Photo task', '#8f3a2f']
   };
   const todayISO = () => iso(new Date());
   const tm = v => { if (!v) return ''; const p = String(v).split(':'), h = +p[0]; return ((h + 11) % 12 + 1) + ':' + pad(+p[1] || 0) + (h >= 12 ? ' PM' : ' AM'); };
@@ -308,6 +308,7 @@ document.querySelectorAll('[data-meal]').forEach(b => b.onclick = () => showReci
     });
     document.querySelectorAll('[data-tk]').forEach(b => b.onclick = async () => {
       const t = S.tasks.find(x => x.id === b.dataset.tk); if (!t) return;
+      if (t.status !== 'done' && t.kind !== 'appointment' && typeof taskMarkDone === 'function') { await taskMarkDone(t); return; }
       await sb.from('tasks').update({ status: t.status === 'done' ? 'open' : 'done' }).eq('id', t.id);
       await loadTasks(); render();
     });
