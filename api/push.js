@@ -1,4 +1,4 @@
-// Household COO: phone reminders for chores.
+// Household COO: phone reminders for tasks (kind 'chore' needs a photo, kind 'task' does not).
 // Two ways in:
 //   1. The hourly job (x-cron-secret header, body {mode:'cron'}): finds chores that are past due and sends the reminders.
 //      At the deadline the owner of the chore is reminded. A few hours later they are reminded again.
@@ -72,7 +72,7 @@ const when = iso => {
 
 async function cron() {
   const now = Date.now();
-  const tasks = await get('tasks?select=id,household_id,title,assigned_to,due_at,status,reminders,submitted_at&kind=eq.chore&status=in.(open,redo,submitted)&due_at=lte.' + encodeURIComponent(new Date(now).toISOString()));
+  const tasks = await get('tasks?select=id,household_id,title,kind,assigned_to,due_at,status,reminders,submitted_at&kind=in.(chore,task)&assigned_to=not.is.null&status=in.(open,redo,submitted)&due_at=lte.' + encodeURIComponent(new Date(now).toISOString()));
   let sent = 0;
   const memCache = {};
   const membersOf = async hid => memCache[hid] || (memCache[hid] = await get('household_members?select=user_id,role,display_name&household_id=eq.' + hid));
@@ -99,9 +99,9 @@ async function cron() {
     else if (!r.r3 && now >= due + 16 * H) stage = 'r3';
     else if (r.r3 && now - new Date(r.last || r.r3).getTime() >= 24 * H) stage = 'again';
     if (!stage) continue;
-    if (stage === 'r1') sent += await send([t.assigned_to], { title: 'Chore due now', body: '"' + t.title + '" was due ' + when(t.due_at) + '. Do it, then send a photo in the app.', url });
-    else if (stage === 'r2') sent += await send([t.assigned_to], { title: 'Still not done', body: '"' + t.title + '" is overdue. Send a photo when it is done.', url });
-    else sent += await send([t.assigned_to].concat(parents(members)), { title: 'Overdue chore', body: '"' + t.title + '" (' + who + ') was due ' + when(t.due_at) + ' and is still not done.', url });
+    if (stage === 'r1') sent += await send([t.assigned_to], { title: 'Task due now', body: '"' + t.title + '" was due ' + when(t.due_at) + (t.kind === 'chore' ? '. Do it, then send a photo in the app.' : '. Do it, then mark it done in the app.'), url });
+    else if (stage === 'r2') sent += await send([t.assigned_to], { title: 'Still not done', body: '"' + t.title + '" is overdue. ' + (t.kind === 'chore' ? 'Send a photo when it is done.' : 'Mark it done in the app when it is finished.'), url });
+    else sent += await send([t.assigned_to].concat(parents(members)), { title: 'Overdue task', body: '"' + t.title + '" (' + who + ') was due ' + when(t.due_at) + ' and is still not done.', url });
     r[stage === 'again' ? 'last' : stage] = new Date(now).toISOString();
     await patch('tasks?id=eq.' + t.id, { reminders: r });
   }
@@ -110,9 +110,9 @@ async function cron() {
 
 async function notify(user, body) {
   const id = String(body.task_id || '');
-  if (!UUID.test(id)) return { error: 'Pick a chore.' };
+  if (!UUID.test(id)) return { error: 'Pick a task.' };
   const t = (await get('tasks?select=id,household_id,title,assigned_to,due_at,status,redo_note&id=eq.' + id))[0];
-  if (!t) return { error: 'That chore is gone.' };
+  if (!t) return { error: 'That task is gone.' };
   const members = await get('household_members?select=user_id,role,display_name&household_id=eq.' + t.household_id);
   const me = members.find(m => m.user_id === user.id);
   if (!me) return { error: 'Not your household.' };
@@ -121,7 +121,7 @@ async function notify(user, body) {
   const ev = String(body.event || '');
   let n = 0;
   if (ev === 'assigned' && isParent && t.assigned_to && t.assigned_to !== user.id) {
-    n = await send([t.assigned_to], { title: 'New chore for you', body: '"' + t.title + '" is due ' + when(t.due_at) + '. Open it for the steps.', url });
+    n = await send([t.assigned_to], { title: 'New task for you', body: '"' + t.title + '"' + (t.due_at ? ' is due ' + when(t.due_at) : ' was added for you') + '. Open the app to see it.', url });
   } else if (ev === 'submitted' && (t.assigned_to === user.id || isParent)) {
     n = await send(parents(members).filter(x => x !== user.id), { title: 'Photo sent in', body: name(members, user.id) + ' marked "' + t.title + '" done. Look at the photo and approve it.', url });
   } else if (ev === 'approved' && isParent && t.assigned_to) {
