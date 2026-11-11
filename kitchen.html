@@ -3154,7 +3154,7 @@ function printWeekCalendar(){
   <style>body{font-family:Arial,sans-serif;padding:20px;color:#1a1a1a}h2{color:#1e4d35;margin-bottom:4px}p{color:#666;font-size:13px;margin-bottom:16px}table{width:100%;border-collapse:collapse}th{background:#1e4d35;color:#fff;padding:10px 8px;border:1px solid #ddd;font-size:13px;text-align:center}td{vertical-align:top}@media print{body{padding:10px}}</style>
   </head><body>
   <h2>🥗 Meal Plan — ${label}</h2>
-  <p>Provision House · app.provisionhouse.org</p>
+  <p>Provision House · householdcoo.provisionhouse.org</p>
   <table>
     <thead><tr>
       <th style="width:80px">Slot</th>
@@ -3256,7 +3256,7 @@ function printMonthCalendar(){
   <style>body{font-family:Arial,sans-serif;padding:16px;color:#1a1a1a}h2{color:#1e4d35;margin-bottom:4px}p{color:#666;font-size:12px}table{width:100%;border-collapse:collapse}th{background:#1e4d35;color:#fff;padding:8px;border:1px solid #ddd;font-size:12px}@media print{body{padding:8px}}</style>
   </head><body>
   <h2>📅 ${monthLabel} — Meal Plan</h2>
-  <p>Provision House · app.provisionhouse.org</p>
+  <p>Provision House · householdcoo.provisionhouse.org</p>
   <table><thead><tr>${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map(d=>`<th>${d}</th>`).join('')}</tr></thead>
   <tbody>${tableRows}</tbody></table>
   <p style="margin-top:12px;font-size:10px;color:#999">Printed from Household COO · Reduce decisions. Install structure.</p>
@@ -3820,7 +3820,7 @@ function printEmergencyRecipe(id){
   <h3>STEPS</h3>
   ${(r.steps||[]).map((s,i)=>`<div class="step"><div class="num">${i+1}</div><div>${s}</div></div>`).join('')}
   ${r.tip?`<div class="tip">${r.tip}</div>`:''}
-  <p style="margin-top:20px;font-size:11px;color:#999">Provision House · app.provisionhouse.org · Reduce decisions. Install structure.</p>
+  <p style="margin-top:20px;font-size:11px;color:#999">Provision House · householdcoo.provisionhouse.org · Reduce decisions. Install structure.</p>
   </body></html>`;
   const w=window.open('','_blank');w.document.write(html);w.document.close();w.print();
 }
@@ -4392,7 +4392,7 @@ function printBlankInventory(){
     <div><div class="sec">🧂 Kitchen Staples — On Hand</div><table><tbody>${pantryToggleRows}</tbody></table></div>
   </div>
 
-  <div class="ftr">Provision House · app.provisionhouse.org · Steward what you have, serve where you are.</div>
+  <div class="ftr">Provision House · householdcoo.provisionhouse.org · Steward what you have, serve where you are.</div>
   </body></html>`;
 
   const win=window.open('','_blank');
