@@ -34,7 +34,7 @@
         '<p class="note" style="margin:14px 0 0">Payment is handled by Stripe. We never see your card. When you finish paying you come straight back here.</p>' +
         '<div style="margin-top:14px"><button class="btn ghost" id="pw_check">I have paid. Check again.</button></div>';
     } else {
-      body = '<p>A parent needs to finish setting up Household COO before you can use it.</p><p class="note">Ask them to open app.provisionhouse.org and choose a plan.</p><div style="margin-top:14px"><button class="btn ghost" id="pw_check">Check again</button></div>';
+      body = '<p>A parent needs to finish setting up Household COO before you can use it.</p><p class="note">Ask them to open householdcoo.provisionhouse.org and choose a plan.</p><div style="margin-top:14px"><button class="btn ghost" id="pw_check">Check again</button></div>';
     }
     document.getElementById('root').innerHTML = '<div class="center"><div class="card" style="max-width:520px">' + head + body +
       '<div style="margin-top:18px"><button class="btn ghost" id="pw_out" style="min-height:32px;padding:0 12px">Sign out</button></div><div class="note" id="pw_msg" style="margin-top:8px"></div></div></div>';
