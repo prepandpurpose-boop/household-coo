@@ -54,7 +54,7 @@
       '<div class="row"><div style="flex:1"><div style="font-weight:600">' + esc(r.store || 'Receipt') + '</div><div class="note">' + esc(r.date) + ' · ' + (r.lines || []).length + ' items</div></div><div style="font-weight:600">' + money(r.total) + '</div><button class="btn ghost" style="min-height:32px;padding:0 10px" data-rcrm="' + r.id + '" aria-label="Remove">&#10005;</button></div>').join('');
     return '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>Receipts.</h1><div class="rule"></div>' +
       '<div class="card"><h2>Scan a receipt</h2>' +
-      '<p style="margin:8px 0">Take one clear picture of the whole receipt. I read each item and its price and sort every line into a spending category, like groceries or fuel. You check it and fix anything before it is saved.</p>' +
+      '<p style="margin:8px 0">Take one clear picture of the whole receipt. I read each item and its price and sort every line into a spending category, like groceries or fuel. I can read a receipt wrong, so check every line and fix anything before it is saved.</p>' +
       '<p style="margin:8px 0">When you save: the amounts come off what is left in each category below, and the items you tick Add to inventory update your Kitchen prices and inventory.</p>' +
       '<div style="margin-top:12px"><button class="btn" id="rc_scan">Take or choose a receipt photo</button></div></div>' +
       '<div class="card" style="margin-top:18px"><h2>What is left this month</h2>' + (rows || '<p class="note">Nothing scanned yet.</p>') + other + '</div>' +
