@@ -1,4 +1,5 @@
-// Household COO: Chores. A parent assigns a chore with steps and a deadline. The person does it and sends a photo.
+// Household COO: Tasks (this screen used to be called Chores). A parent assigns a task with steps and a deadline.
+// A task with kind 'chore' needs a photo and a parent's approval. A task with kind 'task' is checked off, photo optional.
 // Nothing counts as done until a parent approves the photo. Overdue chores show on the Command Center and the TV board,
 // and phone reminders go out from /api/push (owner at the deadline, again a few hours later, parents the next day).
 (function () {
@@ -42,22 +43,23 @@
   document.head.appendChild(css);
 
   const nmOf = id => { const m = S.members.find(x => x.user_id === id); return m ? (m.display_name || m.role) : 'Someone'; };
-  const chores = () => (S.tasks || []).filter(t => t.kind === 'chore');
+  const chores = () => (S.tasks || []).filter(t => t.kind === 'chore' || t.kind === 'task' || !t.kind);
+  const needsPhoto = t => t.kind === 'chore';
   const isOverdue = t => (t.status === 'open' || t.status === 'redo') && t.due_at && new Date(t.due_at).getTime() < Date.now();
   window.choreOverdue = () => chores().filter(isOverdue);
   window.choreWaiting = () => chores().filter(t => t.status === 'submitted');
   const fmtDue = t => {
-    if (!t.due_at) return t.due_date || '';
+    if (!t.due_at) return t.due_date ? t.due_date + (t.due_time ? ' ' + t.due_time : '') : 'any time';
     const d = new Date(t.due_at);
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
   const stepsList = t => { const s = String(t.steps || '').split('\n').map(x => x.trim()).filter(Boolean); return s.length ? '<ol class="ch-steps">' + s.map(x => '<li>' + esc(x.replace(/^\d+[.)]\s*/, '')) + '</li>').join('') + '</ol>' : '<p class="note">No steps were added.</p>'; };
   window.chorePill = t => {
-    if (t.status === 'done') return '<span class="ch-pill ok">Approved</span>';
+    if (t.status === 'done') return '<span class="ch-pill ok">' + (needsPhoto(t) ? 'Approved' : 'Done') + '</span>';
     if (t.status === 'submitted') return '<span class="ch-pill wait">Waiting for approval</span>';
     if (t.status === 'redo') return '<span class="ch-pill redo">Sent back</span>';
     if (isOverdue(t)) return '<span class="ch-pill od">Overdue</span>';
-    return '<span class="ch-pill">Chore</span>';
+    return needsPhoto(t) ? '<span class="ch-pill">Photo needed</span>' : '';
   };
 
   async function photoUrl(path) {
@@ -68,7 +70,7 @@
     try {
       const { data: { session } } = await sb.auth.getSession();
       await fetch('/api/push', { method: 'POST', headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + (session ? session.access_token : '') }, body: JSON.stringify({ mode: 'notify', task_id, event }) });
-    } catch (e) { /* reminders are extra; the chore is already saved */ }
+    } catch (e) { /* reminders are extra; the task is already saved */ }
   }
   function overlay(body) {
     let o = document.getElementById('ch_ov');
@@ -80,7 +82,7 @@
   window.choreOpen = function (id) {
     const t = chores().find(x => x.id === id); if (!t) return;
     const body = chorePill(t) + '<h2 style="margin:8px 0 4px">' + esc(t.title) + '</h2><div class="note">' + esc(nmOf(t.assigned_to)) + ' · due ' + esc(fmtDue(t)) + '</div>' +
-      '<h3 style="margin-top:14px">How to do it</h3>' + stepsList(t) +
+      (t.steps || needsPhoto(t) ? '<h3 style="margin-top:14px">How to do it</h3>' + stepsList(t) : '') +
       (t.proof_hint ? '<h3>The photo that proves it</h3><p>' + esc(t.proof_hint) + '</p>' : '') +
       (t.redo_note ? '<p style="color:var(--red)"><b>Sent back:</b> ' + esc(t.redo_note) + '</p>' : '') +
       (t.photo_path ? '<div id="ch_ovp"></div>' : '');
@@ -113,19 +115,21 @@
   function pushCard(state) {
     const iphone = /iPhone|iPad/.test(navigator.userAgent) && !standalone();
     let body;
-    if (state === 'no') body = iphone ? '<p>To get chore reminders on this iPhone: tap the Share button in Safari, tap <b>Add to Home Screen</b>, then open Household COO from your home screen and come back here.</p>' : '<p class="note">This browser cannot show reminders.</p>';
+    if (state === 'no') body = iphone ? '<p>To get task reminders on this iPhone: tap the Share button in Safari, tap <b>Add to Home Screen</b>, then open Household COO from your home screen and come back here.</p>' : '<p class="note">This browser cannot show reminders.</p>';
     else if (state === 'denied') body = '<p class="note">Reminders are blocked for this site in your phone settings. Allow notifications for Household COO there, then come back.</p>';
     else if (state === 'on') body = '<p>Reminders are on for this phone.</p><button class="btn ghost" id="ch_pushoff">Turn off on this phone</button>';
-    else body = '<p>Get a reminder on this phone when a chore is due, when it is overdue, and when a photo is waiting for you.</p><button class="btn" id="ch_pushon">Turn on reminders</button>';
+    else body = '<p>Get a reminder on this phone when a task is due, when it is overdue, and when a photo is waiting for you.</p><button class="btn" id="ch_pushon">Turn on reminders</button>';
     return '<div class="card" style="margin-top:18px"><h2>Phone reminders</h2>' + body + '<div class="note" id="ch_pushmsg"></div></div>';
   }
 
   // ---------- views ----------
+  const repeatTxt = t => (t.repeat && t.repeat !== 'none' ? ' · repeats ' + (t.repeat === 'daily' ? 'every day' : 'every week') : '');
   function rowParent(t, photo) {
-    return '<div class="ch-row"><div style="flex:1"><div style="font-weight:600">' + esc(t.title) + chorePill(t) + '<span class="chip">' + esc(nmOf(t.assigned_to)) + '</span></div>' +
-      '<div class="note">Due ' + esc(fmtDue(t)) + (t.repeat && t.repeat !== 'none' ? ' · repeats ' + (t.repeat === 'daily' ? 'every day' : 'every week') : '') + '</div>' +
+    return '<div class="ch-row"><div style="flex:1"><div style="font-weight:600">' + esc(t.title) + chorePill(t) + '<span class="chip">' + esc(t.assigned_to ? nmOf(t.assigned_to) : 'Anyone') + '</span></div>' +
+      '<div class="note">Due ' + esc(fmtDue(t)) + repeatTxt(t) + '</div>' +
       (t.redo_note && t.status === 'redo' ? '<div class="note" style="color:var(--red)">Sent back: ' + esc(t.redo_note) + '</div>' : '') +
-      '<div class="ch-acts"><button class="btn ghost" data-chopen="' + t.id + '">Steps</button>' +
+      '<div class="ch-acts">' + (t.steps || needsPhoto(t) ? '<button class="btn ghost" data-chopen="' + t.id + '">Steps</button>' : '') +
+      ((t.status === 'open' || t.status === 'redo') && (!needsPhoto(t) || t.assigned_to === S.user.id) ? (needsPhoto(t) ? '<button class="btn" data-chsend="' + t.id + '">Done. Add my photo</button>' : '<button class="btn" data-chdone="' + t.id + '">Mark done</button>') : '') +
       (t.status === 'open' || t.status === 'redo' ? '<select class="ch-who" data-chwho="' + t.id + '" aria-label="Change who does ' + esc(t.title) + '"><option value="">Change who</option>' + S.members.filter(x => !['helper', 'staff'].includes(x.role) && x.user_id !== t.assigned_to).map(x => '<option value="' + x.user_id + '">' + esc(nmOf(x.user_id)) + '</option>').join('') + '</select>' : '') +
       (t.status === 'submitted' ? '<button class="btn" data-chok="' + t.id + '">Approve</button><button class="btn ghost" data-chredo="' + t.id + '">Send back</button>' : '') +
       '<button class="btn ghost" data-chdel="' + t.id + '" aria-label="Remove">&#10005;</button></div></div>' +
@@ -134,44 +138,52 @@
   function rowMine(t) {
     const open = t.status === 'open' || t.status === 'redo';
     return '<div class="ch-row"><div style="flex:1"><div style="font-weight:600">' + esc(t.title) + chorePill(t) + '</div>' +
-      '<div class="note">Due ' + esc(fmtDue(t)) + '</div>' +
+      '<div class="note">Due ' + esc(fmtDue(t)) + repeatTxt(t) + (t.handoff_notes ? ' · Note: ' + esc(t.handoff_notes) : '') + '</div>' +
       (t.redo_note && t.status === 'redo' ? '<div class="note" style="color:var(--red)">Sent back: ' + esc(t.redo_note) + '. Fix it today and send a new photo.</div>' : '') +
-      (t.proof_hint && open ? '<div class="note">Photo needed: ' + esc(t.proof_hint) + '</div>' : '') +
-      '<div class="ch-acts"><button class="btn ghost" data-chopen="' + t.id + '">Steps</button>' +
-      (open ? '<button class="btn" data-chsend="' + t.id + '">Done. Add my photo</button>' : '') + '</div></div></div>';
+      (t.proof_hint && open && needsPhoto(t) ? '<div class="note">Photo needed: ' + esc(t.proof_hint) + '</div>' : '') +
+      '<div class="ch-acts">' + (t.steps || needsPhoto(t) ? '<button class="btn ghost" data-chopen="' + t.id + '">Steps</button>' : '') +
+      (open ? (needsPhoto(t) ? '<button class="btn" data-chsend="' + t.id + '">Done. Add my photo</button>' : '<button class="btn" data-chdone="' + t.id + '">Mark done</button><button class="btn ghost" data-chsend="' + t.id + '">Done with a photo</button>') : '') +
+      (!needsPhoto(t) && t.created_by === S.user.id && !mgr() ? '<button class="btn ghost" data-chdel="' + t.id + '" aria-label="Remove">&#10005;</button>' : '') + '</div></div>' +
+      (t.photo_path && !needsPhoto(t) ? '<img class="ch-photo" data-chpic="' + esc(t.photo_path) + '" alt="Photo added" data-chopen2="' + t.id + '">' : '') + '</div>';
   }
   const byDue = (a, b) => String(a.due_at || a.due_date || '').localeCompare(String(b.due_at || b.due_date || ''));
 
   window.choresView = function () {
     const all = chores().slice().sort(byDue);
-    const head = '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>Chores.</h1><div class="rule"></div>';
+    const head = '<div class="eyebrow">' + esc(S.hh.name) + '</div><h1>Tasks.</h1><div class="rule"></div>';
     const od = all.filter(isOverdue);
     const banner = od.length ? '<div class="ch-banner"><b>' + od.length + ' overdue.</b> ' + od.map(t => esc(t.title) + ' (' + esc(nmOf(t.assigned_to)) + ')').join(', ') + '</div>' : '';
     if (!mgr()) {
-      const mine = all.filter(t => t.assigned_to === S.user.id);
+      const mine = all.filter(t => t.assigned_to === S.user.id || (!t.assigned_to && !needsPhoto(t)));
       const open = mine.filter(t => t.status !== 'done'), done = mine.filter(t => t.status === 'done').slice(-10).reverse();
-      return head + banner + '<div class="card"><h2>My chores · ' + open.length + '</h2>' + (open.map(rowMine).join('') || '<p class="note">Nothing right now.</p>') +
-        (done.length ? '<h2 style="margin-top:18px">Approved</h2>' + done.map(rowMine).join('') : '') + '</div>' + '<div id="ch_push"></div>';
+      const addMine = '<div class="card" style="margin-top:18px"><h2>Add a task for myself</h2>' +
+        '<label for="ch_mtitle">What needs doing</label><input id="ch_mtitle" maxlength="120" placeholder="Finish my science project">' +
+        '<div class="cal-two"><div><label for="ch_mdate">Date (optional)</label><input id="ch_mdate" type="date"></div><div><label for="ch_mtime">Time (optional)</label><input id="ch_mtime" type="time"></div></div>' +
+        '<label for="ch_mrep">Repeats</label><select id="ch_mrep"><option value="none">Just once</option><option value="daily">Every day</option><option value="weekly">Every week</option></select>' +
+        '<div style="margin-top:12px"><button class="btn" id="ch_madd">Add task</button></div></div>';
+      return head + banner + '<div class="card"><h2>My tasks · ' + open.length + '</h2>' + (open.map(rowMine).join('') || '<p class="note">Nothing right now.</p>') +
+        (done.length ? '<h2 style="margin-top:18px">Finished</h2>' + done.map(rowMine).join('') : '') + '</div>' + addMine + '<div id="ch_push"></div>';
     }
     const waiting = all.filter(t => t.status === 'submitted');
     const open = all.filter(t => t.status === 'open' || t.status === 'redo');
     const done = all.filter(t => t.status === 'done').sort((a, b) => String(b.approved_at || '').localeCompare(String(a.approved_at || ''))).slice(0, 15);
     const people = S.members.filter(m => m.user_id !== S.user.id).concat(S.members.filter(m => m.user_id === S.user.id));
-    const add = '<div class="card" style="margin-top:18px"><h2>Add a chore</h2>' +
-      '<label for="ch_lib">Chore</label><select id="ch_lib">' + LIB.map(c => '<option value="' + c.key + '">' + esc(c.title) + '</option>').join('') + '<option value="custom">Something else</option></select>' +
-      '<div id="ch_customwrap" style="display:none"><label for="ch_title">What is the chore</label><input id="ch_title" placeholder="Clean the garage"><div style="margin-top:8px"><button class="btn ghost" id="ch_write">Write the steps for me</button> <span class="note" id="ch_writemsg"></span></div></div>' +
+    const add = '<div class="card" style="margin-top:18px"><h2>Add a task</h2>' +
+      '<label for="ch_lib">Task</label><select id="ch_lib">' + LIB.map(c => '<option value="' + c.key + '">' + esc(c.title) + '</option>').join('') + '<option value="custom">Something else</option></select>' +
+      '<div id="ch_customwrap" style="display:none"><label for="ch_title">What is the task</label><input id="ch_title" placeholder="Clean the garage"><div style="margin-top:8px"><button class="btn ghost" id="ch_write">Write the steps for me</button> <span class="note" id="ch_writemsg"></span></div></div>' +
       '<label for="ch_steps">Steps (one per line). Change anything to fit your house.</label><textarea id="ch_steps" style="min-height:150px"></textarea>' +
-      '<label for="ch_proof">The photo that proves it is done</label><input id="ch_proof">' +
+      '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input type="checkbox" id="ch_needphoto" checked style="width:22px;height:22px;flex:0 0 22px"> Photo required. It is not done until I approve the photo.</label>' +
+      '<div id="ch_proofwrap"><label for="ch_proof">The photo that proves it is done</label><input id="ch_proof"></div>' +
       '<div class="cal-two"><div><label for="ch_who">Who does it</label><select id="ch_who">' + people.map(m => '<option value="' + m.user_id + '">' + (m.user_id === S.user.id ? 'Me' : esc(nmOf(m.user_id))) + '</option>').join('') + '</select></div>' +
       '<div><label for="ch_rep">Repeats</label><select id="ch_rep"><option value="none">Just once</option><option value="daily">Every day</option><option value="weekly">Every week</option></select></div></div>' +
       '<div class="cal-two"><div><label for="ch_date">Due date</label><input id="ch_date" type="date" value="' + todayISO() + '"></div><div><label for="ch_time">Due by</label><input id="ch_time" type="time" value="' + DEFAULT_TIME + '"></div></div>' +
-      '<p class="note">A photo is required on every chore. It is not done until you approve the photo. Reminders go to them at the deadline and a few hours later; if it is still not done the next day you get the reminder too.</p>' +
-      '<div style="margin-top:12px"><button class="btn" id="ch_add">Add chore</button></div></div>';
+      '<p class="note">With Photo required on, the task is not done until you approve the photo. With it off, the person checks the task off, and steps and a due date are optional. Reminders go to them at the deadline and a few hours later; if it is still not done the next day you get the reminder too.</p>' +
+      '<div style="margin-top:12px"><button class="btn" id="ch_add">Add task</button></div></div>';
     return head + banner +
       '<div class="card"><h2>Needs your approval · ' + waiting.length + '</h2>' + (waiting.map(t => rowParent(t, true)).join('') || '<p class="note">No photos waiting.</p>') + '</div>' +
-      '<div class="card" style="margin-top:18px"><h2>Open · ' + open.length + '</h2>' + (open.map(t => rowParent(t, false)).join('') || '<p class="note">No open chores.</p>') + '</div>' +
+      '<div class="card" style="margin-top:18px"><h2>Open · ' + open.length + '</h2>' + (open.map(t => rowParent(t, false)).join('') || '<p class="note">No open tasks.</p>') + '</div>' +
       add + '<div id="ch_push"></div>' +
-      (done.length ? '<div class="card" style="margin-top:18px"><h2>Approved</h2>' + done.map(t => '<div class="ch-row"><div style="flex:1"><div class="done-t" style="font-weight:600">' + esc(t.title) + '</div><div class="note">' + esc(nmOf(t.assigned_to)) + ' · approved ' + esc(fmtDue({ due_at: t.approved_at })) + '</div></div><button class="btn ghost" style="min-height:32px;padding:0 10px" data-chdel="' + t.id + '" aria-label="Remove">&#10005;</button></div>').join('') + '</div>' : '');
+      (done.length ? '<div class="card" style="margin-top:18px"><h2>Finished</h2>' + done.map(t => '<div class="ch-row"><div style="flex:1"><div class="done-t" style="font-weight:600">' + esc(t.title) + '</div><div class="note">' + esc(t.assigned_to ? nmOf(t.assigned_to) : 'Anyone') + (t.approved_at ? ' · ' + (needsPhoto(t) ? 'approved ' : 'done ') + esc(fmtDue({ due_at: t.approved_at })) : '') + '</div></div><button class="btn ghost" style="min-height:32px;padding:0 10px" data-chdel="' + t.id + '" aria-label="Remove">&#10005;</button></div>').join('') + '</div>' : '');
   };
 
   // Short summary for the Command Center and the kids' task page.
@@ -180,8 +192,8 @@
     if (!od.length && !w.length) return '';
     const mine = x => mgr() || x.assigned_to === S.user.id;
     const a = od.filter(mine).map(t => esc(t.title) + ' (' + esc(nmOf(t.assigned_to)) + ')');
-    return '<div class="ch-banner">' + (a.length ? '<div><b>Overdue chores:</b> ' + a.join(', ') + '</div>' : '') + (w.length ? '<div><b>' + w.length + ' photo' + (w.length > 1 ? 's' : '') + ' waiting for your approval.</b></div>' : '') +
-      '<div style="margin-top:8px"><button class="btn ghost" style="min-height:34px;padding:0 12px" id="ch_go">Open chores</button></div></div>';
+    return '<div class="ch-banner">' + (a.length ? '<div><b>Overdue tasks:</b> ' + a.join(', ') + '</div>' : '') + (w.length ? '<div><b>' + w.length + ' photo' + (w.length > 1 ? 's' : '') + ' waiting for your approval.</b></div>' : '') +
+      '<div style="margin-top:8px"><button class="btn ghost" style="min-height:34px;padding:0 12px" id="ch_go">Open tasks</button></div></div>';
   };
 
   // ---------- actions ----------
@@ -205,8 +217,9 @@
         const path = S.me.household_id + '/' + t.id + '-' + Date.now() + '.jpg';
         const { error: ue } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: false });
         if (ue) throw new Error('The photo could not be saved. Try again.');
+        if (!needsPhoto(t)) { const { error: e2 } = await sb.from('tasks').update({ photo_path: path }).eq('id', t.id); if (e2) throw new Error('The photo was saved but the task could not be updated. Try again.'); const o2 = document.getElementById('ch_ov'); if (o2) o2.remove(); await markDone(t); return; }
         const { error } = await sb.from('tasks').update({ status: 'submitted', photo_path: path, submitted_at: new Date().toISOString(), submitted_by: S.user.id }).eq('id', t.id);
-        if (error) throw new Error('The photo was saved but the chore could not be updated. Try again.');
+        if (error) throw new Error('The photo was saved but the task could not be updated. Try again.');
         tellPush(t.id, 'submitted');
         const o = document.getElementById('ch_ov'); if (o) o.remove();
         await loadTasks(); render();
@@ -218,16 +231,28 @@
     const { error } = await sb.from('tasks').update({ status: 'done', approved_at: new Date().toISOString(), approved_by: S.user.id, redo_note: null }).eq('id', t.id);
     if (error) { alert('That did not save. Please try again.'); return; }
     tellPush(t.id, 'approved');
-    if (t.repeat === 'daily' || t.repeat === 'weekly') {
-      // Line up the next one from the same deadline.
-      const d = t.due_at ? new Date(t.due_at) : new Date();
-      d.setDate(d.getDate() + (t.repeat === 'daily' ? 1 : 7));
-      while (d.getTime() < Date.now()) d.setDate(d.getDate() + (t.repeat === 'daily' ? 1 : 7));
-      const due_date = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
-      await sb.from('tasks').insert({ household_id: S.me.household_id, title: t.title, kind: 'chore', steps: t.steps, proof_hint: t.proof_hint, assigned_to: t.assigned_to, shared: true, due_date, due_time: pad(d.getHours()) + ':' + pad(d.getMinutes()), due_at: d.toISOString(), repeat: t.repeat, status: 'open', reminders: {} });
-    }
+    await spawnNext(t);
     await loadTasks(); render();
   }
+  // A repeating task lines up its next one from the same deadline, with the same person and the same kind.
+  async function spawnNext(t) {
+    if (t.repeat !== 'daily' && t.repeat !== 'weekly') return;
+    const step = t.repeat === 'daily' ? 1 : 7;
+    const d = t.due_at ? new Date(t.due_at) : (t.due_date ? new Date(t.due_date + 'T' + (t.due_time || DEFAULT_TIME).slice(0, 5) + ':00') : new Date());
+    d.setDate(d.getDate() + step);
+    while (d.getTime() < Date.now()) d.setDate(d.getDate() + step);
+    const due_date = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    await sb.from('tasks').insert({ household_id: S.me.household_id, title: t.title, kind: needsPhoto(t) ? 'chore' : 'task', steps: t.steps || null, proof_hint: t.proof_hint || null, handoff_notes: t.handoff_notes || null, assigned_to: t.assigned_to, shared: t.shared !== false, due_date, due_time: pad(d.getHours()) + ':' + pad(d.getMinutes()), due_at: d.toISOString(), repeat: t.repeat, status: 'open', reminders: {} });
+  }
+  // Check off a task that does not need a photo.
+  async function markDone(t) {
+    const { error } = await sb.from('tasks').update({ status: 'done' }).eq('id', t.id);
+    if (error) { alert('That did not save. Please try again.'); return false; }
+    await spawnNext(t);
+    await loadTasks(); render();
+    return true;
+  }
+  window.taskMarkDone = markDone;
   async function sendBack(t) {
     const note = window.prompt('What needs to be fixed? This goes to ' + nmOf(t.assigned_to) + '.');
     if (note === null) return;
@@ -241,8 +266,8 @@
     try {
       const { data: { session } } = await sb.auth.getSession();
       const r = await fetch('/api/generate', { method: 'POST', headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + (session ? session.access_token : '') }, body: JSON.stringify({
-        systemPrompt: 'You write household chore instructions for a family app. Plain words a teenager or adult can follow with no questions. No health or safety claims. Reply with JSON only: {"steps":["..."],"proof":"..."}. steps: 4 to 8 short steps in order, each one thing to do, each a full sentence. proof: one sentence describing the single photo that proves the chore is finished.',
-        userPrompt: 'Chore: ' + title }) });
+        systemPrompt: 'You write household task instructions for a family app. Plain words a teenager or adult can follow with no questions. No health or safety claims. Reply with JSON only: {"steps":["..."],"proof":"..."}. steps: 4 to 8 short steps in order, each one thing to do, each a full sentence. proof: one sentence describing the single photo that proves the task is finished.',
+        userPrompt: 'Task: ' + title }) });
       const j = await r.json();
       const text = (j.content && j.content[0] && j.content[0].text) || '';
       const m = text.match(/\{[\s\S]*\}/); const o = m ? JSON.parse(m[0]) : null;
@@ -258,9 +283,10 @@
     document.querySelectorAll('[data-chopen],[data-chopen2]').forEach(b => b.onclick = () => choreOpen(b.dataset.chopen || b.dataset.chopen2));
     document.querySelectorAll('[data-chpic]').forEach(img => photoUrl(img.dataset.chpic).then(u => { if (u) img.src = u; }));
     document.querySelectorAll('[data-chsend]').forEach(b => b.onclick = () => { const t = chores().find(x => x.id === b.dataset.chsend); if (t) sendPhoto(t); });
+    document.querySelectorAll('[data-chdone]').forEach(b => b.onclick = async () => { const t = chores().find(x => x.id === b.dataset.chdone); if (t) { b.disabled = true; await markDone(t); } });
     document.querySelectorAll('[data-chok]').forEach(b => b.onclick = () => { const t = chores().find(x => x.id === b.dataset.chok); if (t && confirm('Approve "' + t.title + '"?')) approve(t); });
     document.querySelectorAll('[data-chredo]').forEach(b => b.onclick = () => { const t = chores().find(x => x.id === b.dataset.chredo); if (t) sendBack(t); });
-    // A parent moves a chore to someone else. A repeating chore stays with the new person from then on.
+    // A parent moves a task to someone else. A repeating task stays with the new person from then on.
     document.querySelectorAll('[data-chwho]').forEach(sel => sel.onchange = async () => {
       const t = chores().find(x => x.id === sel.dataset.chwho), to = sel.value; if (!t || !to) return;
       if (!confirm('Give "' + t.title + '" to ' + nmOf(to) + '?')) { sel.value = ''; return; }
@@ -281,6 +307,24 @@
       if (on) on.onclick = async () => { on.disabled = true; const ok = await pushOn().catch(() => false); if (ok) render(); else { on.disabled = false; msg.textContent = 'Reminders could not be turned on. Check that notifications are allowed for this site.'; } };
       if (off) off.onclick = async () => { await pushOff(); render(); };
     });
+    const madd = document.getElementById('ch_madd');
+    if (madd) {
+      const go = async () => {
+        const title = document.getElementById('ch_mtitle').value.trim(), date = document.getElementById('ch_mdate').value, time = document.getElementById('ch_mtime').value, repeat = document.getElementById('ch_mrep').value;
+        if (!title) { document.getElementById('ch_mtitle').focus(); return; }
+        if (repeat !== 'none' && !date) { alert('Pick a date so the app knows when it repeats.'); return; }
+        const row = { household_id: S.me.household_id, title, kind: 'task', assigned_to: S.user.id, shared: false, due_date: date || null, due_time: date ? (time || DEFAULT_TIME) : null, status: 'open' };
+        if (date) row.due_at = new Date(date + 'T' + (time || DEFAULT_TIME) + ':00').toISOString();
+        if (repeat !== 'none') row.repeat = repeat;
+        madd.disabled = true;
+        const { error } = await sb.from('tasks').insert(row);
+        madd.disabled = false;
+        if (error) { alert('That did not save. Please try again.'); return; }
+        await loadTasks(); render();
+      };
+      madd.onclick = go;
+      document.getElementById('ch_mtitle').onkeydown = e => { if (e.key === 'Enter') go(); };
+    }
     const lib = document.getElementById('ch_lib');
     if (lib) {
       const fill = () => {
@@ -290,19 +334,21 @@
         document.getElementById('ch_proof').value = c ? c.proof : '';
       };
       lib.onchange = fill; fill();
-      document.getElementById('ch_write').onclick = () => { const t = document.getElementById('ch_title').value.trim(); if (!t) { alert('Type what the chore is first.'); return; } writeSteps(t, document.getElementById('ch_writemsg')); };
+      const np = document.getElementById('ch_needphoto'); np.onchange = () => { document.getElementById('ch_proofwrap').style.display = np.checked ? '' : 'none'; };
+      document.getElementById('ch_write').onclick = () => { const t = document.getElementById('ch_title').value.trim(); if (!t) { alert('Type what the task is first.'); return; } writeSteps(t, document.getElementById('ch_writemsg')); };
       document.getElementById('ch_add').onclick = async () => {
         const c = LIB.find(x => x.key === lib.value);
         const title = c ? c.title : document.getElementById('ch_title').value.trim();
         const steps = document.getElementById('ch_steps').value.trim(), proof = document.getElementById('ch_proof').value.trim();
         const who = document.getElementById('ch_who').value, date = document.getElementById('ch_date').value, time = document.getElementById('ch_time').value || DEFAULT_TIME, repeat = document.getElementById('ch_rep').value;
-        if (!title) { alert('Type what the chore is.'); return; }
-        if (!steps) { alert('Add the steps so they know how it is supposed to be done.'); return; }
-        if (!who) { alert('Pick who does it. A chore needs one person.'); return; }
-        if (!date) { alert('Pick a due date.'); return; }
-        const due_at = new Date(date + 'T' + time + ':00');
+        const photo = document.getElementById('ch_needphoto').checked;
+        if (!title) { alert('Type what the task is.'); return; }
+        if (photo && !steps) { alert('Add the steps so they know how it is supposed to be done.'); return; }
+        if (!who) { alert('Pick who does it. A task needs one person.'); return; }
+        if (!date && (photo || repeat !== 'none')) { alert('Pick a due date.'); return; }
+        const due_at = date ? new Date(date + 'T' + time + ':00') : null;
         const b = document.getElementById('ch_add'); b.disabled = true;
-        const { data, error } = await sb.from('tasks').insert({ household_id: S.me.household_id, title, kind: 'chore', steps, proof_hint: proof || null, assigned_to: who, shared: true, due_date: date, due_time: time, due_at: due_at.toISOString(), repeat, status: 'open', reminders: {} }).select('id').single();
+        const { data, error } = await sb.from('tasks').insert({ household_id: S.me.household_id, title, kind: photo ? 'chore' : 'task', steps: steps || null, proof_hint: photo ? (proof || null) : null, assigned_to: who, shared: true, due_date: date || null, due_time: date ? time : null, due_at: due_at ? due_at.toISOString() : null, repeat, status: 'open', reminders: {} }).select('id').single();
         b.disabled = false;
         if (error) { alert('That did not save. Please try again.'); return; }
         if (data && data.id) tellPush(data.id, 'assigned');
