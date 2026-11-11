@@ -32,6 +32,7 @@
         '<button type="button" id="pw_ty" role="tab" style="flex:1;min-height:44px;border:none;border-radius:999px;font:inherit;font-weight:600;cursor:pointer">Yearly <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;border:1px solid currentColor;font-size:11px;font-weight:700;white-space:nowrap">Save $119</span></button></div>' +
         '<div class="card" style="margin:12px 0;padding:16px;border:2px solid var(--gold)"><h2 style="margin:0" id="pw_amt"></h2><p class="note" style="margin:6px 0 12px" id="pw_per"></p><a class="btn" style="display:inline-block;text-decoration:none;text-align:center" id="pw_go" href="#"></a></div>' +
         '<p class="note" style="margin:14px 0 0">Payment is handled by Stripe. We never see your card. When you finish paying you come straight back here.</p>' +
+        '<p class="note" style="margin:10px 0 0;font-size:13px">By starting a plan you agree to the <a href="/terms.html" target="_blank" rel="noopener" style="color:var(--blue)">Terms of Use</a> and <a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--blue)">Privacy Policy</a>.</p>' +
         '<div style="margin-top:14px"><button class="btn ghost" id="pw_check">I have paid. Check again.</button></div>';
     } else {
       body = '<p>A parent needs to finish setting up Household COO before you can use it.</p><p class="note">Ask them to open householdcoo.provisionhouse.org and choose a plan.</p><div style="margin-top:14px"><button class="btn ghost" id="pw_check">Check again</button></div>';
