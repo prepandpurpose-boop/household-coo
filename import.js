@@ -22,7 +22,7 @@
     <div class="sub">Add your last three months of statements and Household COO fills in your income, bills, and debts for you. You look it over, change anything you want, and choose what to add.</div></div>
   <div class="card">
     <div class="card-title">1. Choose your statements</div>
-    <div class="card-note">PDF statements work best. Pictures and CSV downloads work too. You can add more than one account. Each file must be under 3 MB.</div>
+    <div class="card-note">PDF statements work best. Pictures and CSV downloads work too. You can add more than one account. Each file must be under 3 MB. The app can read a statement wrong, so check every number before you save.</div>
     <input type="file" id="impFiles" multiple accept="application/pdf,image/png,image/jpeg,image/webp,.csv,text/csv" style="display:none">
     <button class="btn btn-green btn-sm" id="impPick">+ Choose files</button>
     <div id="impList" style="margin-top:14px"></div>
